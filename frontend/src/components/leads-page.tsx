@@ -12,6 +12,7 @@ export function LeadsPage() {
   const [leads, setLeads] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("match_score");
@@ -19,6 +20,7 @@ export function LeadsPage() {
   const fetchLeads = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       let path = `/api/v1/leads?sort_by=${sortBy}&sort_dir=desc&per_page=50`;
       if (statusFilter !== "all") path += `&status=${statusFilter}`;
       if (sourceFilter !== "all") path += `&source=${sourceFilter}`;
@@ -26,7 +28,8 @@ export function LeadsPage() {
       setLeads(data.items);
       setTotal(data.total);
     } catch (e) {
-      console.error("Failed to fetch leads", e);
+      const msg = e instanceof Error ? e.message : "Failed to connect";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -84,6 +87,14 @@ export function LeadsPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {error && (
+        <Card className="p-6 mb-4 border-yellow-200 bg-yellow-50">
+          <p className="font-medium text-yellow-800">Backend not connected</p>
+          <p className="text-sm text-yellow-600 mt-1">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchLeads}>Retry</Button>
+        </Card>
+      )}
 
       {/* Leads list */}
       <div className="space-y-3">

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { NavBar } from "@/components/nav-bar";
-import { LeadsPage } from "@/components/leads-page";
+import { OverviewContent } from "@/components/overview-content";
 
 export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -54,8 +54,8 @@ export default function Home() {
   return (
     <>
       <NavBar />
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        <LeadsPage />
+      <main className="max-w-3xl mx-auto px-4 py-6">
+        <OverviewContent />
       </main>
     </>
   );
