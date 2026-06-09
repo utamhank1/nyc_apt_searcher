@@ -11,10 +11,14 @@ import { LeadsPage } from "@/components/leads-page";
 export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
   const [apiKey, setApiKeyInput] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setAuthenticated(hasApiKey());
   }, []);
+
+  if (!mounted) return null;
 
   if (!authenticated) {
     return (
