@@ -1,1 +1,2 @@
-export default { output: "standalone" };
+/** @type {import('next').NextConfig} */
+export default {};
