@@ -3,6 +3,31 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _safe_json_list(val: str) -> list:
+    """Parse a JSON list string, handling Railway's env var quoting quirks."""
+    if not val or val.strip() == "":
+        return []
+    val = val.strip()
+    try:
+        result = json.loads(val)
+        return result if isinstance(result, list) else []
+    except json.JSONDecodeError:
+        # Fallback: try comma-separated values
+        return [v.strip().strip('"').strip("'") for v in val.split(",") if v.strip()]
+
+
+def _safe_json_dict(val: str) -> dict:
+    """Parse a JSON dict string, handling Railway's env var quoting quirks."""
+    if not val or val.strip() == "":
+        return {}
+    val = val.strip()
+    try:
+        result = json.loads(val)
+        return result if isinstance(result, dict) else {}
+    except json.JSONDecodeError:
+        return {}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -64,27 +89,27 @@ class Settings(BaseSettings):
 
     @property
     def boroughs_list(self) -> list[str]:
-        return json.loads(self.boroughs)
+        return _safe_json_list(self.boroughs)
 
     @property
     def neighborhoods_list(self) -> list[str]:
-        return json.loads(self.neighborhoods)
+        return _safe_json_list(self.neighborhoods)
 
     @property
     def must_have_amenities_list(self) -> list[str]:
-        return json.loads(self.must_have_amenities)
+        return _safe_json_list(self.must_have_amenities)
 
     @property
     def preferred_amenities_list(self) -> list[str]:
-        return json.loads(self.preferred_amenities)
+        return _safe_json_list(self.preferred_amenities)
 
     @property
     def sources_enabled_dict(self) -> dict[str, bool]:
-        return json.loads(self.sources_enabled)
+        return _safe_json_dict(self.sources_enabled)
 
     @property
     def search_partner_emails_list(self) -> list[str]:
-        return json.loads(self.search_partner_emails)
+        return _safe_json_list(self.search_partner_emails)
 
 
 settings = Settings()
