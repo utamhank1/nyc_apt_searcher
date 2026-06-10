@@ -24,9 +24,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
-  if (res.status === 401 && !path.includes("/calendar/")) {
-    localStorage.removeItem("apt_api_key");
-    window.location.href = "/";
+  if (res.status === 401) {
+    if (!path.includes("/calendar/") && !path.includes("/test-telegram")) {
+      console.warn("401 on", path, "- clearing API key");
+      localStorage.removeItem("apt_api_key");
+    }
     throw new Error("Unauthorized");
   }
 
