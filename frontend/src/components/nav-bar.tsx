@@ -15,8 +15,8 @@ export function NavBar() {
 
   return (
     <nav className="bg-white border-b sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 flex items-center h-14 gap-4 overflow-x-auto">
-        <span className="font-bold text-sm sm:text-lg whitespace-nowrap">🏠 NYC Apt</span>
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 flex items-center h-14 gap-2 sm:gap-6 overflow-x-auto">
+        <span className="font-bold text-sm sm:text-lg whitespace-nowrap">🏠 NYC Apt Searcher</span>
         <div className="flex gap-1 flex-shrink-0">
           {links.map(({ href, label }) => {
             const active = pathname === href;
