@@ -101,6 +101,33 @@ export const ALL_BOROUGHS = [
   "Staten Island",
 ];
 
+export const NEIGHBORHOODS_BY_BOROUGH: Record<string, string[]> = {
+  Manhattan: [
+    "Chelsea", "East Harlem", "East Village", "Financial District",
+    "Flatiron", "Gramercy Park", "Greenwich Village", "Harlem",
+    "Hell's Kitchen", "Inwood", "Kips Bay", "Lower East Side",
+    "Midtown East", "Midtown West", "Murray Hill", "NoHo", "Nolita",
+    "SoHo", "Tribeca", "Upper East Side", "Upper West Side",
+    "Washington Heights", "West Village",
+  ],
+  Brooklyn: [
+    "Bay Ridge", "Bed-Stuy", "Boerum Hill", "Brooklyn Heights",
+    "Bushwick", "Carroll Gardens", "Cobble Hill", "Crown Heights",
+    "Downtown Brooklyn", "DUMBO", "Fort Greene", "Greenpoint",
+    "Park Slope", "Prospect Heights", "Sunset Park", "Williamsburg",
+  ],
+  Queens: [
+    "Astoria", "Flushing", "Forest Hills", "Jackson Heights",
+    "Long Island City", "Sunnyside",
+  ],
+  Bronx: [
+    "Concourse", "Fordham", "Mott Haven", "Riverdale",
+  ],
+  "Staten Island": [
+    "St. George", "Tompkinsville",
+  ],
+};
+
 export interface SavedSearch {
   id: number;
   name: string;

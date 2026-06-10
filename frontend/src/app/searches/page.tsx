@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, hasApiKey } from "@/lib/api";
-import { SavedSearch, ALL_BOROUGHS, ALL_AMENITIES } from "@/lib/types";
+import { SavedSearch, ALL_BOROUGHS, ALL_AMENITIES, NEIGHBORHOODS_BY_BOROUGH } from "@/lib/types";
 import { NavBar } from "@/components/nav-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -192,7 +192,6 @@ function SearchFormDialog({ search, open, onClose, onSave }: {
   onSave: (s: SavedSearch) => void;
 }) {
   const [form, setForm] = useState<SavedSearch>(search || makeBlank());
-  const [nhInput, setNhInput] = useState("");
 
   useEffect(() => {
     if (search) setForm(search);
@@ -202,11 +201,13 @@ function SearchFormDialog({ search, open, onClose, onSave }: {
 
   const isNew = !form.id;
 
-  const addNh = () => {
-    const n = nhInput.trim();
-    if (n && !form.neighborhoods.includes(n)) {
+  const availableNeighborhoods = form.boroughs.flatMap((b) => NEIGHBORHOODS_BY_BOROUGH[b] || []).filter((n) => !form.neighborhoods.includes(n));
+
+  const toggleNeighborhood = (n: string) => {
+    if (form.neighborhoods.includes(n)) {
+      setForm({ ...form, neighborhoods: form.neighborhoods.filter((x) => x !== n) });
+    } else {
       setForm({ ...form, neighborhoods: [...form.neighborhoods, n] });
-      setNhInput("");
     }
   };
 
@@ -237,16 +238,17 @@ function SearchFormDialog({ search, open, onClose, onSave }: {
 
           <div>
             <Label>Neighborhoods</Label>
-            <div className="flex gap-1 mt-1 flex-wrap">
-              {form.neighborhoods.map((n) => (
-                <Badge key={n} variant="secondary" className="cursor-pointer text-xs" onClick={() => setForm({ ...form, neighborhoods: form.neighborhoods.filter((x) => x !== n) })}>
-                  {n} ✕
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2 mt-1">
-              <Input placeholder="Add neighborhood..." value={nhInput} onChange={(e) => setNhInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addNh())} className="text-sm" />
-              <Button variant="outline" size="sm" onClick={addNh}>Add</Button>
+            {form.boroughs.length === 0 && <p className="text-xs text-gray-400 mt-1">Select boroughs first</p>}
+            <div className="flex gap-1 mt-1 flex-wrap max-h-40 overflow-y-auto">
+              {form.boroughs.flatMap((b) => (NEIGHBORHOODS_BY_BOROUGH[b] || []).map((n) => {
+                const selected = form.neighborhoods.includes(n);
+                return (
+                  <button key={n} onClick={() => toggleNeighborhood(n)}
+                    className={`px-2 py-1 rounded text-xs border ${selected ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
+                    {selected ? "✓ " : ""}{n}
+                  </button>
+                );
+              }))}
             </div>
           </div>
 
