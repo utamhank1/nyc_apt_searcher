@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, hasApiKey } from "@/lib/api";
-import { SearchConfig, ALL_BOROUGHS, ALL_AMENITIES } from "@/lib/types";
+import { SearchConfig, ALL_BOROUGHS, ALL_AMENITIES, NEIGHBORHOODS_BY_BOROUGH } from "@/lib/types";
 import { NavBar } from "@/components/nav-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -196,21 +196,20 @@ export default function SettingsPage() {
 
               <div>
                 <Label className="text-base font-semibold">Neighborhoods</Label>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {config.neighborhoods.map((n) => (
-                    <Badge key={n} variant="secondary" className="cursor-pointer" onClick={() => removeNeighborhood(n)}>
-                      {n} ✕
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Add neighborhood..."
-                    value={neighborhoodInput}
-                    onChange={(e) => setNeighborhoodInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addNeighborhood())}
-                  />
-                  <Button variant="outline" onClick={addNeighborhood}>Add</Button>
+                {config.boroughs.length === 0 && <p className="text-xs text-gray-400 mt-1">Select boroughs first</p>}
+                <div className="flex gap-1 mt-2 flex-wrap max-h-48 overflow-y-auto">
+                  {config.boroughs.flatMap((b) => (NEIGHBORHOODS_BY_BOROUGH[b] || []).map((n) => {
+                    const selected = config.neighborhoods.includes(n);
+                    return (
+                      <button key={n} onClick={() => {
+                        if (selected) removeNeighborhood(n);
+                        else setConfig({ ...config, neighborhoods: [...config.neighborhoods, n] });
+                      }}
+                        className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${selected ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
+                        {selected ? "✓ " : ""}{n}
+                      </button>
+                    );
+                  }))}
                 </div>
               </div>
 
