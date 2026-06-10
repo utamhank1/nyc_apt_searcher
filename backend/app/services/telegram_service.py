@@ -14,13 +14,22 @@ async def create_telegram_app() -> Application | None:
     if not settings.telegram_bot_token:
         return None
 
+    import asyncio
+
     app = Application.builder().token(settings.telegram_bot_token).build()
     app.add_handler(CommandHandler("start", _handle_start))
     app.add_handler(CallbackQueryHandler(_handle_callback))
 
     await app.initialize()
     await app.start()
-    await app.updater.start_polling(drop_pending_updates=True)
+
+    for attempt in range(3):
+        try:
+            await app.updater.start_polling(drop_pending_updates=True)
+            break
+        except Exception as e:
+            logger.warning("Telegram polling conflict, retrying", attempt=attempt, error=str(e))
+            await asyncio.sleep(5 * (attempt + 1))
 
     _telegram_app = app
     return app
