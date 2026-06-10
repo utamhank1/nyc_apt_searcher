@@ -148,4 +148,5 @@ def normalize_listing(raw: RawListing) -> dict:
         "broker_phone": raw.broker_phone,
         "open_house_dates": raw.open_house_dates,
         "description": raw.description[:5000] if raw.description else None,
+        "available_date": raw.available_date,
     }

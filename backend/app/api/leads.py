@@ -112,6 +112,7 @@ def _listing_to_dict(l: Listing) -> dict:
         "broker_phone": l.broker_phone,
         "open_house_dates": l.open_house_dates or [],
         "description": l.description,
+        "available_date": l.available_date,
         "commute_minutes": l.commute_minutes,
         "match_score": l.match_score,
         "status": l.status,

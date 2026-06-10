@@ -27,6 +27,11 @@ const DEFAULT_CONFIG: SearchConfig = {
   work_address: "",
   lead_score_threshold: 70,
   sources_enabled: { streeteasy: true, zillow: true },
+  move_in_mode: "",
+  move_in_date: "",
+  move_in_range_start: "",
+  move_in_range_end: "",
+  move_in_only: false,
   search_partner_emails: [],
   user_name: "",
   user_email: "",
@@ -231,6 +236,83 @@ export default function SettingsPage() {
                   <Label>Min Bathrooms</Label>
                   <Input type="number" min={0} step={0.5} value={config.min_baths} onChange={(e) => setConfig({ ...config, min_baths: parseFloat(e.target.value) || 0 })} />
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Move-In Date */}
+              <div>
+                <Label className="text-base font-semibold">Move-In Date</Label>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {[
+                    { value: "", label: "Any" },
+                    { value: "immediately", label: "Available Immediately" },
+                    { value: "date", label: "By Specific Date" },
+                    { value: "range", label: "Date Range" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setConfig({ ...config, move_in_mode: opt.value })}
+                      className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
+                        config.move_in_mode === opt.value
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                      }`}
+                    >
+                      {config.move_in_mode === opt.value ? "✓ " : ""}{opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {config.move_in_mode === "date" && (
+                  <div className="mt-3">
+                    <Label className="text-sm">Available by</Label>
+                    <Input
+                      type="date"
+                      value={config.move_in_date}
+                      onChange={(e) => setConfig({ ...config, move_in_date: e.target.value })}
+                      className="w-48"
+                    />
+                  </div>
+                )}
+
+                {config.move_in_mode === "range" && (
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <Label className="text-sm">From</Label>
+                      <Input
+                        type="date"
+                        value={config.move_in_range_start}
+                        onChange={(e) => setConfig({ ...config, move_in_range_start: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">To</Label>
+                      <Input
+                        type="date"
+                        value={config.move_in_range_end}
+                        onChange={(e) => setConfig({ ...config, move_in_range_end: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {config.move_in_mode && (
+                  <div className="flex items-center gap-3 mt-3">
+                    <Switch
+                      checked={config.move_in_only}
+                      onCheckedChange={(checked) => setConfig({ ...config, move_in_only: checked })}
+                    />
+                    <div>
+                      <span className="text-sm font-medium">Only show matching dates</span>
+                      {config.move_in_only && (
+                        <p className="text-xs text-yellow-600 mt-0.5">
+                          ⚠️ This may significantly limit results — listings without an availability date will be excluded
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />

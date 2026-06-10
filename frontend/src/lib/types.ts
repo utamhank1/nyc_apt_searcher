@@ -16,6 +16,7 @@ export interface Listing {
   broker_name: string | null;
   broker_email: string | null;
   broker_phone: string | null;
+  available_date: string | null;
   open_house_dates: Array<{ date: string; start_time: string; end_time: string }>;
   description: string | null;
   commute_minutes: number | null;
@@ -47,6 +48,11 @@ export interface SearchConfig {
   work_address: string;
   lead_score_threshold: number;
   sources_enabled: Record<string, boolean>;
+  move_in_mode: string;
+  move_in_date: string;
+  move_in_range_start: string;
+  move_in_range_end: string;
+  move_in_only: boolean;
   search_partner_emails: string[];
   user_name: string;
   user_email: string;

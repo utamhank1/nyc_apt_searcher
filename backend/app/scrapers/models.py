@@ -20,4 +20,5 @@ class RawListing:
     broker_email: str | None = None
     broker_phone: str | None = None
     description: str | None = None
+    available_date: str | None = None
     open_house_dates: list[dict] = field(default_factory=list)

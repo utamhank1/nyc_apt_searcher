@@ -75,6 +75,8 @@ async def send_broker_email(listing: dict) -> bool:
 
 def _build_alert_body(listing: dict) -> str:
     commute = f"🚇 {listing['commute_minutes']} min commute" if listing.get("commute_minutes") else ""
+    avail = listing.get("available_date")
+    available_line = f"📅 Available: {'Immediately' if avail and avail.lower() in ('immediately', 'now') else avail}" if avail else ""
     amenities = ", ".join(listing.get("amenities", [])[:5])
     amenities_line = f"✅ Has: {amenities}" if amenities else ""
     score = listing.get("match_score", 0)
@@ -86,6 +88,7 @@ def _build_alert_body(listing: dict) -> str:
             <p style="font-size: 16px; margin: 4px 0;">📍 {listing.get('address', 'Address unavailable')}, {listing.get('neighborhood', '')}, {listing.get('borough', '')}</p>
             <p style="font-size: 20px; font-weight: bold; margin: 4px 0;">💰 ${listing.get('price', '?'):,}/mo · {listing.get('beds', '?')}BR/{listing.get('baths', '?')}BA{f" · {listing.get('sqft'):,} sqft" if listing.get('sqft') else ''}</p>
             <p style="margin: 4px 0;">{commute}</p>
+            <p style="margin: 4px 0;">{available_line}</p>
             <p style="margin: 4px 0;">{amenities_line}</p>
             <p style="margin: 4px 0;">⭐ Match Score: {score}/100</p>
         </div>
@@ -114,6 +117,7 @@ def _build_broker_email(listing: dict) -> tuple[str, str]:
         "{{your_name}}": settings.user_name or "Prospective Tenant",
         "{{your_phone}}": settings.user_phone or "",
         "{{your_email}}": settings.user_email or settings.alert_to_email or "",
+        "{{available_date}}": listing.get("available_date") or "Not specified",
     }
 
     if settings.use_custom_email_template:

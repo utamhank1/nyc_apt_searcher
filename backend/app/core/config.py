@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     lead_score_threshold: int = 70
     sources_enabled: str = '{"streeteasy": true, "zillow": true}'
 
+    # Move-in date filter
+    move_in_mode: str = ""  # "", "immediately", "date", "range"
+    move_in_date: str = ""  # ISO date for "date" mode
+    move_in_range_start: str = ""  # ISO date for "range" mode
+    move_in_range_end: str = ""
+    move_in_only: bool = False  # hard filter toggle
+
     # Search partners (up to 3)
     search_partner_emails: str = '[]'
 

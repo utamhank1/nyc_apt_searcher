@@ -24,6 +24,11 @@ class SearchConfig(BaseModel):
     user_name: str | None = None
     user_email: str | None = None
     user_phone: str | None = None
+    move_in_mode: str | None = None
+    move_in_date: str | None = None
+    move_in_range_start: str | None = None
+    move_in_range_end: str | None = None
+    move_in_only: bool | None = None
     use_custom_email_template: bool | None = None
     custom_email_subject: str | None = None
     custom_email_body: str | None = None
@@ -47,6 +52,11 @@ async def get_config():
         "user_name": settings.user_name,
         "user_email": settings.user_email,
         "user_phone": settings.user_phone,
+        "move_in_mode": settings.move_in_mode,
+        "move_in_date": settings.move_in_date,
+        "move_in_range_start": settings.move_in_range_start,
+        "move_in_range_end": settings.move_in_range_end,
+        "move_in_only": settings.move_in_only,
         "use_custom_email_template": settings.use_custom_email_template,
         "custom_email_subject": settings.custom_email_subject,
         "custom_email_body": settings.custom_email_body,
@@ -102,6 +112,21 @@ async def update_config(config: SearchConfig):
     if config.user_phone is not None:
         settings.user_phone = config.user_phone
         updated["user_phone"] = config.user_phone
+    if config.move_in_mode is not None:
+        settings.move_in_mode = config.move_in_mode
+        updated["move_in_mode"] = config.move_in_mode
+    if config.move_in_date is not None:
+        settings.move_in_date = config.move_in_date
+        updated["move_in_date"] = config.move_in_date
+    if config.move_in_range_start is not None:
+        settings.move_in_range_start = config.move_in_range_start
+        updated["move_in_range_start"] = config.move_in_range_start
+    if config.move_in_range_end is not None:
+        settings.move_in_range_end = config.move_in_range_end
+        updated["move_in_range_end"] = config.move_in_range_end
+    if config.move_in_only is not None:
+        settings.move_in_only = config.move_in_only
+        updated["move_in_only"] = config.move_in_only
     if config.use_custom_email_template is not None:
         settings.use_custom_email_template = config.use_custom_email_template
         updated["use_custom_email_template"] = config.use_custom_email_template

@@ -140,6 +140,7 @@ function LeadCard({ lead, onTour, onPass }: { lead: Listing; onTour: () => void;
             {lead.baths && <span>{lead.baths}BA</span>}
             {lead.sqft && <span>{lead.sqft.toLocaleString()} sqft</span>}
             {lead.commute_minutes && <span>🚇 {lead.commute_minutes} min</span>}
+            {lead.available_date && <span>📅 {lead.available_date.toLowerCase() === "immediately" ? "Now" : lead.available_date}</span>}
             {lead.neighborhood && <span>📍 {lead.neighborhood}</span>}
           </div>
           {lead.amenities.length > 0 && (

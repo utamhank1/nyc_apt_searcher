@@ -1,8 +1,56 @@
+from datetime import date, datetime
+
 import structlog
 
 from app.core.config import settings
 
 logger = structlog.get_logger()
+
+
+def _parse_date(val: str) -> date | None:
+    if not val:
+        return None
+    try:
+        return datetime.strptime(val, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _check_move_in_date(listing_data: dict) -> bool | None:
+    """Check if listing matches move-in date criteria.
+    Returns True if matches, False if doesn't, None if no date info available."""
+    mode = settings.move_in_mode
+    if not mode:
+        return True
+
+    listing_date_str = listing_data.get("available_date")
+    if not listing_date_str:
+        return None  # no date info on listing
+
+    if listing_date_str.lower() in ("immediately", "now", "asap"):
+        listing_date = date.today()
+    else:
+        listing_date = _parse_date(listing_date_str)
+        if not listing_date:
+            return None
+
+    if mode == "immediately":
+        return listing_date <= date.today()
+    elif mode == "date":
+        target = _parse_date(settings.move_in_date)
+        if not target:
+            return True
+        return listing_date <= target
+    elif mode == "range":
+        start = _parse_date(settings.move_in_range_start)
+        end = _parse_date(settings.move_in_range_end)
+        if start and listing_date < start:
+            return False
+        if end and listing_date > end:
+            return False
+        return True
+
+    return True
 
 
 def score_listing(listing_data: dict) -> float | None:
@@ -31,6 +79,14 @@ def score_listing(listing_data: dict) -> float | None:
         for must_have in must_haves:
             if must_have.lower() not in listing_amenities_lower:
                 return None
+
+    # Move-in date filter
+    date_match = _check_move_in_date(listing_data)
+    if settings.move_in_only:
+        if date_match is False:
+            return None
+        if date_match is None and settings.move_in_mode:
+            return None  # no date info = excluded in "only" mode
 
     # Soft scoring (0-100)
     score = 0.0

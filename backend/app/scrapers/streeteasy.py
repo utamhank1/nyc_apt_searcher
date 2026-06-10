@@ -73,6 +73,9 @@ class StreetEasyScraper(BaseScraper):
         if area_slugs:
             parts.append(f"area:{','.join(area_slugs)}")
 
+        if criteria.get("move_in_date"):
+            parts.append(f"availability:{criteria['move_in_date']}")
+
         filter_str = "%7C".join(parts) if parts else ""
         base = "https://streeteasy.com/for-rent/nyc"
         return f"{base}/{filter_str}" if filter_str else base

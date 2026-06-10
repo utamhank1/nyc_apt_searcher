@@ -26,6 +26,10 @@ async def run_scrape():
         "max_price": settings.max_price,
         "min_price": settings.min_price,
         "min_beds": settings.min_beds,
+        "move_in_mode": settings.move_in_mode,
+        "move_in_date": settings.move_in_date,
+        "move_in_range_start": settings.move_in_range_start,
+        "move_in_range_end": settings.move_in_range_end,
     }
 
     all_raw_listings = []
@@ -118,6 +122,7 @@ async def run_scrape():
                         broker_phone=normalized.get("broker_phone"),
                         open_house_dates=normalized.get("open_house_dates"),
                         description=normalized.get("description"),
+                        available_date=normalized.get("available_date"),
                         commute_minutes=commute,
                         match_score=score,
                     )
@@ -160,6 +165,7 @@ async def _send_alerts(listing: Listing, db: AsyncSession):
         "neighborhood": listing.neighborhood,
         "borough": listing.borough,
         "amenities": listing.amenities or [],
+        "available_date": listing.available_date,
         "commute_minutes": listing.commute_minutes,
         "match_score": listing.match_score,
     }

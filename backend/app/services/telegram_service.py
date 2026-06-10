@@ -85,6 +85,8 @@ async def send_telegram_alert(listing: dict) -> bool:
         return False
 
     commute = f"🚇 {listing['commute_minutes']} min commute\n" if listing.get("commute_minutes") else ""
+    avail = listing.get("available_date")
+    available = f"📅 Available: {'Immediately' if avail and avail.lower() in ('immediately', 'now') else avail}\n" if avail else ""
     amenities = ", ".join(listing.get("amenities", [])[:5])
     amenities_line = f"✅ {amenities}\n" if amenities else ""
     score = listing.get("match_score", 0)
@@ -96,6 +98,7 @@ async def send_telegram_alert(listing: dict) -> bool:
         f"   {listing.get('neighborhood', '')}, {listing.get('borough', '')}\n"
         f"💰 ${listing.get('price', '?'):,}/mo · {listing.get('beds', '?')}BR/{listing.get('baths', '?')}BA{sqft}\n"
         f"{commute}"
+        f"{available}"
         f"{amenities_line}"
         f"⭐ Score: {score}/100\n\n"
         f"[View Listing →]({listing.get('url', '#')})\n\n"

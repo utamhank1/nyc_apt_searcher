@@ -74,5 +74,7 @@ class Listing(Base):
     last_seen = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    available_date = Column(String(20))
+
     broker_email_sent = Column(Boolean, default=False)
     broker_email_sent_at = Column(DateTime)
