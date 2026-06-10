@@ -16,6 +16,7 @@ async def get_leads(
     status: Optional[str] = None,
     borough: Optional[str] = None,
     source: Optional[str] = None,
+    search_name: Optional[str] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
     sort_by: str = Query("match_score", pattern="^(match_score|price|commute_minutes|first_seen)$"),
@@ -32,6 +33,8 @@ async def get_leads(
         query = query.where(Listing.borough == borough)
     if source:
         query = query.where(Listing.source == source)
+    if search_name:
+        query = query.where(Listing.search_name == search_name)
     if min_price is not None:
         query = query.where(Listing.price >= min_price)
     if max_price is not None:
@@ -203,6 +206,7 @@ def _listing_to_dict(l: Listing) -> dict:
         "open_house_dates": l.open_house_dates or [],
         "description": l.description,
         "available_date": l.available_date,
+        "search_name": l.search_name,
         "commute_minutes": l.commute_minutes,
         "match_score": l.match_score,
         "status": l.status,

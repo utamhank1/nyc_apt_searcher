@@ -18,7 +18,9 @@ async def send_alert_email(listing: dict) -> bool:
         logger.warning("Email not configured, skipping alert")
         return False
 
-    subject = f"🔥 Hot Apartment Lead! #{listing['id']} - {listing.get('neighborhood', 'NYC')}"
+    search = listing.get("search_name")
+    search_tag = f" [{search}]" if search else ""
+    subject = f"🔥 Hot Apartment Lead!{search_tag} #{listing['id']} - {listing.get('neighborhood', 'NYC')}"
     body = _build_alert_body(listing)
 
     try:
@@ -97,7 +99,7 @@ def _build_alert_body(listing: dict) -> str:
         <p style="font-size: 18px; font-weight: bold;">Would you like to tour it?</p>
         <p>Reply <strong>Y</strong> to schedule a tour (we'll email the broker for you)</p>
         <p>Reply <strong>N</strong> to pass</p>
-        <p style="color: #666; font-size: 12px;">Source: {listing.get('source', '').title()} | Listing #{listing.get('id', '')}</p>
+        <p style="color: #666; font-size: 12px;">Source: {listing.get('source', '').title()} | Search: {listing.get('search_name', 'Manual')} | Listing #{listing.get('id', '')}</p>
     </div>
     """
 

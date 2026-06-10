@@ -17,6 +17,7 @@ export interface Listing {
   broker_email: string | null;
   broker_phone: string | null;
   available_date: string | null;
+  search_name: string | null;
   open_house_dates: Array<{ date: string; start_time: string; end_time: string }>;
   description: string | null;
   commute_minutes: number | null;
@@ -99,6 +100,30 @@ export const ALL_BOROUGHS = [
   "Bronx",
   "Staten Island",
 ];
+
+export interface SavedSearch {
+  id: number;
+  name: string;
+  is_active: boolean;
+  boroughs: string[];
+  neighborhoods: string[];
+  max_price: number;
+  min_price: number;
+  min_beds: number;
+  min_baths: number;
+  must_have_amenities: string[];
+  preferred_amenities: string[];
+  work_address: string;
+  lead_score_threshold: number;
+  sources_enabled: Record<string, boolean>;
+  move_in_mode: string;
+  move_in_date: string;
+  move_in_range_start: string;
+  move_in_range_end: string;
+  move_in_only: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
 
 export const ALL_AMENITIES = [
   "dishwasher",

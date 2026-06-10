@@ -65,11 +65,13 @@ from app.api.leads import router as leads_router
 from app.api.config_api import router as config_router
 from app.api.stats import router as stats_router
 from app.api.webhooks import router as webhooks_router
+from app.api.searches import router as searches_router
 from app.api.calendar import router as calendar_router
 
 app.include_router(leads_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 app.include_router(config_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 app.include_router(stats_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
+app.include_router(searches_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 app.include_router(calendar_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 app.include_router(webhooks_router, prefix="/api/v1")
 

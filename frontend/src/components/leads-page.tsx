@@ -272,6 +272,7 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
             <h3 className="font-semibold truncate">{lead.address || lead.title || "Unknown address"}</h3>
             <Badge className={statusClass}>{STATUS_LABELS[lead.status] || lead.status}</Badge>
             <Badge variant="outline" className="text-xs">{lead.source}</Badge>
+            {lead.search_name && <Badge variant="secondary" className="text-xs">{lead.search_name}</Badge>}
           </div>
           <div className="flex items-center gap-4 text-sm text-gray-600 mt-1 flex-wrap">
             {lead.price && <span className="font-semibold text-gray-900">${lead.price.toLocaleString()}/mo</span>}

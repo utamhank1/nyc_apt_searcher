@@ -76,5 +76,8 @@ class Listing(Base):
 
     available_date = Column(String(20))
 
+    search_config_id = Column(Integer, nullable=True)
+    search_name = Column(String(100), nullable=True)
+
     broker_email_sent = Column(Boolean, default=False)
     broker_email_sent_at = Column(DateTime)

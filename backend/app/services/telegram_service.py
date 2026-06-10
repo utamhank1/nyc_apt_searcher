@@ -15,6 +15,15 @@ async def create_telegram_app() -> Application | None:
         return None
 
     import asyncio
+    from telegram import Bot
+
+    # Clear any existing webhook/polling session before starting
+    bot = Bot(token=settings.telegram_bot_token)
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except Exception:
+        pass
+    await asyncio.sleep(2)
 
     app = Application.builder().token(settings.telegram_bot_token).build()
     app.add_handler(CommandHandler("start", _handle_start))
@@ -28,7 +37,7 @@ async def create_telegram_app() -> Application | None:
             await app.updater.start_polling(drop_pending_updates=True)
             break
         except Exception as e:
-            logger.warning("Telegram polling conflict, retrying", attempt=attempt, error=str(e))
+            logger.warning("Telegram polling conflict, retrying", attempt=attempt + 1, error=str(e))
             await asyncio.sleep(5 * (attempt + 1))
 
     _telegram_app = app
@@ -116,8 +125,12 @@ async def send_telegram_alert(listing: dict) -> bool:
     score = listing.get("match_score", 0)
     sqft = f" · {listing['sqft']:,} sqft" if listing.get("sqft") else ""
 
+    search = listing.get("search_name")
+    search_line = f"🔎 Search: {search}\n" if search else ""
+
     message = (
         f"🔥 *Hot apartment lead!*\n\n"
+        f"{search_line}"
         f"📍 {listing.get('address', 'Address unavailable')}\n"
         f"   {listing.get('neighborhood', '')}, {listing.get('borough', '')}\n"
         f"💰 ${listing.get('price', '?'):,}/mo · {listing.get('beds', '?')}BR/{listing.get('baths', '?')}BA{sqft}\n"
