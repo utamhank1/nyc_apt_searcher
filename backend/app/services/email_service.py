@@ -122,16 +122,25 @@ def _build_broker_email(listing: dict) -> tuple[str, str]:
         "{{available_date}}": listing.get("available_date") or "Not specified",
     }
 
-    # Get available times from Google Calendar if connected
     available_times_text = ""
-    from app.services.calendar_service import is_calendar_connected, get_available_times, format_availability_for_email
-    if is_calendar_connected():
-        try:
-            import asyncio
-            slots = asyncio.get_event_loop().run_until_complete(get_available_times())
-            available_times_text = format_availability_for_email(slots)
-        except RuntimeError:
-            pass
+    from app.services.calendar_service import is_any_calendar_connected, get_combined_available_times, format_availability_for_email
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                connected = pool.submit(asyncio.run, is_any_calendar_connected()).result()
+                if connected:
+                    slots = pool.submit(asyncio.run, get_combined_available_times()).result()
+                    available_times_text = format_availability_for_email(slots)
+        else:
+            connected = loop.run_until_complete(is_any_calendar_connected())
+            if connected:
+                slots = loop.run_until_complete(get_combined_available_times())
+                available_times_text = format_availability_for_email(slots)
+    except Exception:
+        pass
 
     placeholders["{{available_times}}"] = available_times_text
 

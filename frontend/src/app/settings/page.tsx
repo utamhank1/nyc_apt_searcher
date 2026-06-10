@@ -461,49 +461,86 @@ export default function SettingsPage() {
 }
 
 function GoogleCalendarSection() {
-  const [status, setStatus] = useState<{ connected: boolean } | null>(null);
+  const [connections, setConnections] = useState<Array<{ email: string; is_main: boolean }>>([]);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    api.get<{ connected: boolean }>("/api/v1/calendar/status").then(setStatus).catch(() => {});
+    api.get<{ connected: boolean; connections: Array<{ email: string; is_main: boolean }> }>("/api/v1/calendar/status")
+      .then((res) => setConnections(res.connections || []))
+      .catch(() => {});
   }, []);
 
-  const connect = async () => {
+  const connectMain = async () => {
     setLoading(true);
     try {
-      const res = await api.get<{ auth_url?: string; error?: string }>("/api/v1/calendar/authorize");
-      if (res.auth_url) {
-        window.open(res.auth_url, "_blank");
-      } else if (res.error) {
-        alert(res.error);
-      }
-    } catch (e) {
-      console.error(e);
-    }
+      const res = await api.get<{ auth_url?: string; error?: string }>("/api/v1/calendar/authorize?role=main");
+      if (res.auth_url) window.open(res.auth_url, "_blank");
+      else if (res.error) alert(res.error);
+    } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  const disconnect = async () => {
-    await api.get("/api/v1/calendar/disconnect");
-    setStatus({ connected: false });
+  const disconnectUser = async (email: string) => {
+    await api.get(`/api/v1/calendar/disconnect?email=${encodeURIComponent(email)}`);
+    setConnections(connections.filter((c) => c.email !== email));
   };
+
+  const copyPartnerLink = () => {
+    const baseUrl = window.location.origin;
+    const partnerUrl = `${baseUrl}/settings?connect_calendar=partner`;
+    navigator.clipboard.writeText(partnerUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
+
+  const mainConnected = connections.find((c) => c.is_main);
+  const partnerConnections = connections.filter((c) => !c.is_main);
 
   return (
     <div>
       <Label className="text-base font-semibold">Google Calendar</Label>
-      <p className="text-sm text-gray-500 mb-2">
-        Connect to include your available times in broker emails (20 min travel buffer + 15 min tour)
+      <p className="text-sm text-gray-500 mb-3">
+        Connect calendars to include available times in broker emails (20 min travel buffer + 15 min tour)
       </p>
-      {status?.connected ? (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-green-600 font-medium">✅ Connected</span>
-          <Button variant="outline" size="sm" onClick={disconnect}>Disconnect</Button>
+
+      {/* Main user */}
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-sm font-medium">Your Calendar</span>
+          {mainConnected && <span className="text-xs text-gray-500 ml-2">({mainConnected.email})</span>}
         </div>
-      ) : (
-        <Button variant="outline" onClick={connect} disabled={loading}>
-          {loading ? "Opening..." : "Connect Google Calendar"}
-        </Button>
-      )}
+        {mainConnected ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-green-600">Connected</span>
+            <Button variant="outline" size="sm" onClick={() => disconnectUser(mainConnected.email)}>Disconnect</Button>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" onClick={connectMain} disabled={loading}>
+            {loading ? "Opening..." : "Connect"}
+          </Button>
+        )}
+      </div>
+
+      {/* Partner */}
+      <div className="flex items-center justify-between py-2 border-t">
+        <div>
+          <span className="text-sm font-medium">Partner Calendar</span>
+          {partnerConnections.length > 0 && (
+            <span className="text-xs text-gray-500 ml-2">({partnerConnections[0].email})</span>
+          )}
+        </div>
+        {partnerConnections.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-green-600">Connected</span>
+            <Button variant="outline" size="sm" onClick={() => disconnectUser(partnerConnections[0].email)}>Disconnect</Button>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" onClick={copyPartnerLink}>
+            {copied ? "Link Copied!" : "Copy Connect Link for Partner"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

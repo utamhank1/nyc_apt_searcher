@@ -1,7 +1,14 @@
-from fastapi import APIRouter
+import json
+from datetime import datetime
+
+from fastapi import APIRouter, Depends
 from google_auth_oauthlib.flow import Flow
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import get_db
+from app.models.calendar_connection import CalendarConnection
 
 router = APIRouter(tags=["calendar"])
 
@@ -9,9 +16,12 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
 
 @router.get("/calendar/authorize")
-async def authorize():
+async def authorize(role: str = "main", email: str = ""):
     if not settings.google_calendar_client_id:
         return {"error": "Google Calendar client ID not configured. Set GOOGLE_CALENDAR_CLIENT_ID in env vars."}
+
+    user_email = email or (settings.user_email if role == "main" else "")
+    state = json.dumps({"role": role, "email": user_email})
 
     flow = Flow.from_client_config(
         {
@@ -29,14 +39,23 @@ async def authorize():
         access_type="offline",
         prompt="consent",
         include_granted_scopes="true",
+        state=state,
     )
     return {"auth_url": auth_url}
 
 
 @router.get("/calendar/callback")
-async def callback(code: str):
+async def callback(code: str, state: str = "{}", db: AsyncSession = Depends(get_db)):
     if not settings.google_calendar_client_id:
         return {"error": "Google Calendar not configured"}
+
+    try:
+        state_data = json.loads(state)
+    except json.JSONDecodeError:
+        state_data = {}
+
+    role = state_data.get("role", "main")
+    user_email = state_data.get("email", settings.user_email)
 
     try:
         flow = Flow.from_client_config(
@@ -54,19 +73,74 @@ async def callback(code: str):
         flow.fetch_token(code=code)
         creds = flow.credentials
 
-        settings.google_calendar_refresh_token = creds.refresh_token or ""
-        return {"ok": True, "message": "Google Calendar connected!"}
+        if not creds.refresh_token:
+            return {"error": "No refresh token received. Try disconnecting and reconnecting."}
+
+        existing = await db.execute(
+            select(CalendarConnection).where(CalendarConnection.user_email == user_email)
+        )
+        conn = existing.scalar_one_or_none()
+
+        if conn:
+            conn.refresh_token = creds.refresh_token
+            conn.connected_at = datetime.utcnow()
+        else:
+            conn = CalendarConnection(
+                user_email=user_email,
+                refresh_token=creds.refresh_token,
+                is_main_user=(role == "main"),
+            )
+            db.add(conn)
+
+        await db.commit()
+        return {"ok": True, "message": f"Google Calendar connected for {user_email}!"}
     except Exception as e:
         return {"error": f"OAuth failed: {str(e)}"}
 
 
+@router.get("/calendar/connections")
+async def list_connections(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CalendarConnection))
+    connections = result.scalars().all()
+    return {
+        "connections": [
+            {
+                "user_email": c.user_email,
+                "is_main_user": c.is_main_user,
+                "connected_at": c.connected_at.isoformat() if c.connected_at else None,
+            }
+            for c in connections
+        ]
+    }
+
+
 @router.get("/calendar/status")
-async def calendar_status():
-    from app.services.calendar_service import is_calendar_connected
-    return {"connected": is_calendar_connected()}
+async def calendar_status(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CalendarConnection))
+    connections = result.scalars().all()
+    return {
+        "connected": len(connections) > 0,
+        "connections": [
+            {"email": c.user_email, "is_main": c.is_main_user}
+            for c in connections
+        ],
+    }
 
 
 @router.delete("/calendar/disconnect")
-async def disconnect():
-    settings.google_calendar_refresh_token = ""
-    return {"ok": True, "message": "Google Calendar disconnected"}
+async def disconnect(email: str = "", db: AsyncSession = Depends(get_db)):
+    if email:
+        result = await db.execute(
+            select(CalendarConnection).where(CalendarConnection.user_email == email)
+        )
+    else:
+        result = await db.execute(
+            select(CalendarConnection).where(CalendarConnection.is_main_user == True)
+        )
+
+    conn = result.scalar_one_or_none()
+    if conn:
+        await db.delete(conn)
+        await db.commit()
+        return {"ok": True, "message": f"Disconnected {conn.user_email}"}
+    return {"ok": True, "message": "No connection found"}
