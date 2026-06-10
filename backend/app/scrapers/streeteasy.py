@@ -61,7 +61,7 @@ class StreetEasyScraper(BaseScraper):
             parts.append(f"price:{criteria['min_price']}-")
         if criteria.get("min_beds"):
             beds = criteria["min_beds"]
-            parts.append(f"beds>={beds}")
+            parts.append(f"beds:{beds}")
 
         neighborhoods = criteria.get("neighborhoods", [])
         area_slugs = []

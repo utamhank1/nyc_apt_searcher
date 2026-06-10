@@ -9,36 +9,44 @@ logger = structlog.get_logger()
 _telegram_app: Application | None = None
 
 
+async def _telegram_error_handler(update, context):
+    """Suppress Telegram Conflict errors so they don't crash the app."""
+    if "Conflict" in str(context.error):
+        logger.debug("Telegram conflict error suppressed")
+        return
+    logger.error("Telegram error", error=str(context.error))
+
+
 async def create_telegram_app() -> Application | None:
     global _telegram_app
     if not settings.telegram_bot_token:
         return None
 
     import asyncio
-    from telegram import Bot
 
-    # Clear any existing webhook/polling session before starting
+    # Wait for old container to die during Railway zero-downtime deploys
+    await asyncio.sleep(15)
+
+    from telegram import Bot
     bot = Bot(token=settings.telegram_bot_token)
     try:
         await bot.delete_webhook(drop_pending_updates=True)
     except Exception:
         pass
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
 
     app = Application.builder().token(settings.telegram_bot_token).build()
     app.add_handler(CommandHandler("start", _handle_start))
     app.add_handler(CallbackQueryHandler(_handle_callback))
+    app.add_error_handler(_telegram_error_handler)
 
     await app.initialize()
     await app.start()
 
-    for attempt in range(3):
-        try:
-            await app.updater.start_polling(drop_pending_updates=True)
-            break
-        except Exception as e:
-            logger.warning("Telegram polling conflict, retrying", attempt=attempt + 1, error=str(e))
-            await asyncio.sleep(5 * (attempt + 1))
+    try:
+        await app.updater.start_polling(drop_pending_updates=True)
+    except Exception as e:
+        logger.warning("Telegram polling failed, bot will work for outbound only", error=str(e))
 
     _telegram_app = app
     return app
