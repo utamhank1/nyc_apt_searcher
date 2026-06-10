@@ -79,6 +79,33 @@ async def update_lead_status(
     return {"ok": True, "listing_id": listing_id, "status": new_status}
 
 
+@router.post("/leads/test-telegram")
+async def test_telegram():
+    from app.services.telegram_service import send_telegram_alert
+    test_listing = {
+        "id": 0,
+        "source": "test",
+        "url": "https://example.com",
+        "title": "Test Listing",
+        "price": 2500,
+        "beds": 1,
+        "baths": 1,
+        "sqft": 650,
+        "address": "123 Test St, East Village",
+        "neighborhood": "East Village",
+        "borough": "Manhattan",
+        "amenities": ["dishwasher", "elevator"],
+        "available_date": None,
+        "commute_minutes": 15,
+        "match_score": 85,
+        "search_name": "Test",
+        "broker_email": None,
+        "open_house_dates": [],
+    }
+    sent = await send_telegram_alert(test_listing)
+    return {"ok": sent, "message": "Test notification sent!" if sent else "Failed — check Telegram config"}
+
+
 @router.post("/leads/trigger-scrape")
 async def trigger_scrape():
     import asyncio

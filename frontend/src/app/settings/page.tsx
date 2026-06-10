@@ -414,11 +414,7 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div>
-                <Label className="text-base font-semibold">Telegram</Label>
-                <p className="text-sm text-gray-500 mb-2">Click to connect, then send /start to the bot to get your chat ID</p>
-                <a href="https://t.me/nyc_apt_searcher_bot" target="_blank" rel="noopener noreferrer"><Button variant="outline">Connect Telegram Bot</Button></a>
-              </div>
+              <TelegramSection />
 
               <Separator />
 
@@ -540,6 +536,37 @@ function GoogleCalendarSection() {
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+function TelegramSection() {
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const sendTest = async () => {
+    setTesting(true);
+    setResult(null);
+    try {
+      const res = await api.post<{ ok: boolean; message: string }>("/api/v1/leads/test-telegram");
+      setResult(res.message);
+    } catch (e) {
+      setResult("Failed to send test notification");
+    }
+    setTesting(false);
+  };
+
+  return (
+    <div>
+      <Label className="text-base font-semibold">Telegram</Label>
+      <p className="text-sm text-gray-500 mb-2">Click to connect, then send /start to the bot to get your chat ID</p>
+      <div className="flex gap-2">
+        <a href="https://t.me/nyc_apt_searcher_bot" target="_blank" rel="noopener noreferrer"><Button variant="outline">Connect Telegram Bot</Button></a>
+        <Button variant="outline" onClick={sendTest} disabled={testing}>
+          {testing ? "Sending..." : "Test Notification"}
+        </Button>
+      </div>
+      {result && <p className="text-xs text-gray-600 mt-2">{result}</p>}
     </div>
   );
 }
