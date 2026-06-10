@@ -123,7 +123,14 @@ async def send_telegram_alert(listing: dict) -> bool:
 
     global _telegram_app
     if not _telegram_app:
-        return False
+        # Fall back to direct Bot API if polling app didn't start
+        from telegram import Bot
+        try:
+            _telegram_app = Application.builder().token(settings.telegram_bot_token).build()
+            await _telegram_app.initialize()
+        except Exception as e:
+            logger.error("Failed to create fallback Telegram bot", error=str(e))
+            return False
 
     commute = f"🚇 {listing['commute_minutes']} min commute\n" if listing.get("commute_minutes") else ""
     avail = listing.get("available_date")
