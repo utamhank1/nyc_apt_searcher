@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,9 +94,21 @@ async def callback(code: str, state: str = "{}", db: AsyncSession = Depends(get_
             db.add(conn)
 
         await db.commit()
-        return {"ok": True, "message": f"Google Calendar connected for {user_email}!"}
+
+        return HTMLResponse(
+            "<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
+            "<h2>Google Calendar Connected!</h2>"
+            f"<p>Connected for: {user_email}</p>"
+            "<p>You can close this tab and return to the app.</p>"
+            "</body></html>"
+        )
     except Exception as e:
-        return {"error": f"OAuth failed: {str(e)}"}
+        return HTMLResponse(
+            f"<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
+            f"<h2>Connection Failed</h2><p>{str(e)}</p>"
+            f"</body></html>",
+            status_code=400,
+        )
 
 
 @router.get("/calendar/connections")

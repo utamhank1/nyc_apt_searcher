@@ -72,7 +72,7 @@ app.include_router(leads_router, prefix="/api/v1", dependencies=[Depends(verify_
 app.include_router(config_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 app.include_router(stats_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 app.include_router(searches_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
-app.include_router(calendar_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
+app.include_router(calendar_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
 
 
