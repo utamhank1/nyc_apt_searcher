@@ -98,6 +98,149 @@ class ZillowScraper(BaseScraper):
         logger.info(f"Scraped {len(listings)} listings from Zillow")
         return listings
 
+    async def scrape_single_listing(self, url: str) -> RawListing | None:
+        """Scrape a single Zillow listing detail page."""
+        context = None
+        try:
+            context = await self.new_context()
+            page = await context.new_page()
+
+            if not await self.safe_goto(page, "https://www.zillow.com"):
+                return None
+            if not await self.safe_goto(page, url, wait_until="networkidle"):
+                return None
+
+            await page.wait_for_timeout(5000)
+
+            # Try to extract from embedded JSON first
+            data = {}
+            next_data = await page.query_selector("script#__NEXT_DATA__")
+            if next_data:
+                try:
+                    text = await next_data.inner_text()
+                    parsed = json.loads(text)
+                    data = self._find_property_in_json(parsed) or {}
+                except Exception:
+                    pass
+
+            if not data:
+                scripts = await page.query_selector_all("script[type='application/json']")
+                for script in scripts:
+                    try:
+                        text = await script.inner_text()
+                        if "zpid" in text or "bedrooms" in text:
+                            parsed = json.loads(text)
+                            data = self._find_property_in_json(parsed) or {}
+                            if data:
+                                break
+                    except Exception:
+                        continue
+
+            zpid_match = re.search(r"/(\d+)_zpid", url)
+            source_id = zpid_match.group(1) if zpid_match else url.split("/")[-1]
+
+            price = data.get("price") or data.get("unformattedPrice")
+            if isinstance(price, str):
+                m = re.search(r"[\d,]+", price)
+                price = int(m.group().replace(",", "")) if m else None
+
+            address_data = data.get("address") or data.get("streetAddress") or ""
+            if isinstance(address_data, dict):
+                address = f"{address_data.get('streetAddress', '')}, {address_data.get('city', '')}"
+            else:
+                address = str(address_data) if address_data else None
+
+            if not address:
+                addr_el = await page.query_selector("h1, [data-testid='bdp-address']")
+                if addr_el:
+                    address = (await addr_el.inner_text()).strip()
+
+            beds = data.get("bedrooms") or data.get("beds")
+            baths = data.get("bathrooms") or data.get("baths")
+            sqft = data.get("livingArea") or data.get("area")
+
+            amenities = []
+            for key in ("amenityFeatures", "amenities", "buildingAmenities", "unitAmenities"):
+                raw_amenities = data.get(key, [])
+                if isinstance(raw_amenities, list):
+                    for a in raw_amenities:
+                        if isinstance(a, str):
+                            amenities.append(a)
+                        elif isinstance(a, dict):
+                            amenities.append(a.get("name", a.get("text", str(a))))
+
+            broker_name = None
+            broker_phone = None
+            agent = data.get("attributionInfo") or data.get("listingAgent") or {}
+            if isinstance(agent, dict):
+                broker_name = agent.get("agentName") or agent.get("brokerName")
+                broker_phone = agent.get("agentPhoneNumber") or agent.get("brokerPhoneNumber")
+
+            open_house_dates = []
+            for oh in data.get("openHouses", data.get("openHouseSchedule", [])):
+                if isinstance(oh, dict):
+                    open_house_dates.append({
+                        "date": oh.get("date", oh.get("startDate", "")),
+                        "start_time": oh.get("startTime", ""),
+                        "end_time": oh.get("endTime", ""),
+                    })
+
+            available_date = data.get("dateAvailable") or data.get("availabilityDate")
+            description = data.get("description") or data.get("homeDescription")
+
+            if not price:
+                price_el = await page.query_selector("[data-testid='price'], [class*='price']")
+                if price_el:
+                    text = await price_el.inner_text()
+                    m = re.search(r"\$?([\d,]+)", text)
+                    if m:
+                        price = int(m.group(1).replace(",", ""))
+
+            logger.info("Scraped single Zillow listing", source_id=source_id, price=price)
+            return RawListing(
+                source="zillow",
+                source_id=str(source_id),
+                url=url,
+                title=address or f"Zillow #{source_id}",
+                price=price,
+                beds=int(beds) if beds else None,
+                baths=float(baths) if baths else None,
+                sqft=int(sqft) if sqft else None,
+                address=address,
+                amenities=amenities,
+                broker_name=broker_name,
+                broker_phone=broker_phone,
+                description=description[:5000] if description else None,
+                available_date=available_date,
+                open_house_dates=open_house_dates,
+            )
+        except Exception as e:
+            logger.error("Failed to scrape single Zillow listing", url=url, error=str(e))
+            return None
+        finally:
+            if context:
+                await context.close()
+
+    def _find_property_in_json(self, data, depth=0) -> dict | None:
+        """Find the property detail object in Zillow's nested JSON."""
+        if depth > 10:
+            return None
+        if isinstance(data, dict):
+            if "zpid" in data and ("price" in data or "bedrooms" in data or "address" in data):
+                return data
+            if "property" in data and isinstance(data["property"], dict):
+                return data["property"]
+            for v in data.values():
+                result = self._find_property_in_json(v, depth + 1)
+                if result:
+                    return result
+        if isinstance(data, list):
+            for item in data:
+                result = self._find_property_in_json(item, depth + 1)
+                if result:
+                    return result
+        return None
+
     def _build_search_url(self, criteria: dict) -> str:
         base = "https://www.zillow.com/new-york-ny/rentals/"
         params = []

@@ -141,6 +141,127 @@ class StreetEasyScraper(BaseScraper):
 
         return listings
 
+    async def scrape_single_listing(self, url: str) -> RawListing | None:
+        """Scrape a single StreetEasy listing detail page."""
+        context = None
+        try:
+            context = await self.new_context()
+            page = await context.new_page()
+
+            if not await self.safe_goto(page, "https://streeteasy.com"):
+                return None
+            if not await self.safe_goto(page, url):
+                return None
+
+            await page.wait_for_timeout(3000)
+
+            source_id_match = re.search(r"/(\d+)(?:\?|$)", url)
+            source_id = source_id_match.group(1) if source_id_match else url.split("/")[-1]
+
+            price = None
+            for sel in ["[data-testid='price']", "[class*='price']", "[class*='Price']", "h3"]:
+                el = await page.query_selector(sel)
+                if el:
+                    text = await el.inner_text()
+                    match = re.search(r"\$?([\d,]+)", text)
+                    if match:
+                        price = int(match.group(1).replace(",", ""))
+                        break
+
+            address = None
+            for sel in ["[data-testid='address']", "h1", "[class*='addr']", "[class*='Address']"]:
+                el = await page.query_selector(sel)
+                if el:
+                    address = (await el.inner_text()).strip()
+                    if address:
+                        break
+
+            beds, baths, sqft = None, None, None
+            detail_text = await page.inner_text("body")
+            beds_match = re.search(r"(\d+)\s*(?:bed|br|bedroom)", detail_text, re.I)
+            baths_match = re.search(r"([\d.]+)\s*(?:bath|ba)", detail_text, re.I)
+            sqft_match = re.search(r"([\d,]+)\s*(?:sq\.?\s*ft|sqft|sf)", detail_text, re.I)
+            if beds_match:
+                beds = int(beds_match.group(1))
+            if baths_match:
+                baths = float(baths_match.group(1))
+            if sqft_match:
+                sqft = int(sqft_match.group(1).replace(",", ""))
+
+            amenities = []
+            for sel in ["[class*='amenities'] li", "[class*='Amenities'] li", "[data-testid='amenities'] li"]:
+                els = await page.query_selector_all(sel)
+                if els:
+                    for el in els:
+                        text = (await el.inner_text()).strip()
+                        if text:
+                            amenities.append(text)
+                    break
+
+            broker_name, broker_email, broker_phone = None, None, None
+            for sel in ["[class*='agent'] [class*='name']", "[class*='broker'] [class*='name']", "[class*='Agent'] a"]:
+                el = await page.query_selector(sel)
+                if el:
+                    broker_name = (await el.inner_text()).strip()
+                    break
+
+            email_link = await page.query_selector("a[href^='mailto:']")
+            if email_link:
+                href = await email_link.get_attribute("href")
+                if href:
+                    broker_email = href.replace("mailto:", "").split("?")[0]
+
+            phone_link = await page.query_selector("a[href^='tel:']")
+            if phone_link:
+                href = await phone_link.get_attribute("href")
+                if href:
+                    broker_phone = href.replace("tel:", "")
+
+            description = None
+            for sel in ["[class*='description']", "[data-testid='description']", "[class*='Description']"]:
+                el = await page.query_selector(sel)
+                if el:
+                    description = (await el.inner_text()).strip()
+                    break
+
+            available_date = None
+            avail_match = re.search(r"(?:available|move.?in|avail)\s*(?:on|from|:)?\s*(\w+ \d+,?\s*\d{4}|\d{1,2}/\d{1,2}/\d{2,4}|immediately|now)", detail_text, re.I)
+            if avail_match:
+                available_date = avail_match.group(1).strip()
+
+            neighborhood = None
+            for sel in ["[class*='neighborhood']", "[class*='Neighborhood']", "[class*='area']"]:
+                el = await page.query_selector(sel)
+                if el:
+                    neighborhood = (await el.inner_text()).strip()
+                    break
+
+            logger.info("Scraped single StreetEasy listing", source_id=source_id, price=price)
+            return RawListing(
+                source="streeteasy",
+                source_id=str(source_id),
+                url=url,
+                title=address or f"StreetEasy #{source_id}",
+                price=price,
+                beds=beds,
+                baths=baths,
+                sqft=sqft,
+                address=address,
+                neighborhood=neighborhood,
+                amenities=amenities,
+                broker_name=broker_name,
+                broker_email=broker_email,
+                broker_phone=broker_phone,
+                description=description,
+                available_date=available_date,
+            )
+        except Exception as e:
+            logger.error("Failed to scrape single StreetEasy listing", url=url, error=str(e))
+            return None
+        finally:
+            if context:
+                await context.close()
+
     async def _parse_card(self, card, page: Page) -> RawListing | None:
         try:
             # Extract listing URL

@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { Listing, LeadsResponse, STATUS_COLORS, STATUS_LABELS } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 
@@ -14,6 +15,9 @@ export function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [submitUrl, setSubmitUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ ok?: boolean; error?: string } | null>(null);
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("match_score");
 
@@ -47,8 +51,54 @@ export function LeadsPage() {
     fetchLeads();
   };
 
+  const handleSubmitUrl = async () => {
+    if (!submitUrl.trim()) return;
+    setSubmitting(true);
+    setSubmitResult(null);
+    try {
+      const res = await api.post<{ ok?: boolean; error?: string; listing?: Listing }>("/api/v1/leads/submit-url", { url: submitUrl.trim() });
+      if (res.error) {
+        setSubmitResult({ error: res.error });
+      } else {
+        setSubmitResult({ ok: true });
+        setSubmitUrl("");
+        fetchLeads();
+      }
+    } catch (e) {
+      setSubmitResult({ error: e instanceof Error ? e.message : "Failed to submit" });
+    }
+    setSubmitting(false);
+  };
+
   return (
     <div>
+      {/* URL Submission */}
+      <Card className="p-4 mb-6">
+        <h2 className="text-sm font-semibold mb-2">Add a listing manually</h2>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Paste a StreetEasy or Zillow listing URL..."
+            value={submitUrl}
+            onChange={(e) => setSubmitUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !submitting && handleSubmitUrl()}
+            disabled={submitting}
+            className="flex-1"
+          />
+          <Button onClick={handleSubmitUrl} disabled={submitting || !submitUrl.trim()}>
+            {submitting ? "Scraping..." : "Add Listing"}
+          </Button>
+        </div>
+        {submitting && (
+          <p className="text-xs text-gray-500 mt-2">Scraping listing details — this may take 10-30 seconds...</p>
+        )}
+        {submitResult?.error && (
+          <p className="text-xs text-red-600 mt-2">{submitResult.error}</p>
+        )}
+        {submitResult?.ok && (
+          <p className="text-xs text-green-600 mt-2">Listing added and scored! Check below and your Telegram for the alert.</p>
+        )}
+      </Card>
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Hot Leads ({total})</h1>
         <Button variant="outline" onClick={fetchLeads} disabled={loading}>

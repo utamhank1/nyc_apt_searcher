@@ -105,12 +105,18 @@ async def send_telegram_alert(listing: dict) -> bool:
         f"Would you like to tour it?"
     )
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("✅ Tour it!", callback_data=f"tour|{listing['id']}"),
-            InlineKeyboardButton("❌ Pass", callback_data=f"pass|{listing['id']}"),
-        ]
-    ])
+    buttons = []
+    if listing.get("broker_email"):
+        buttons.append(InlineKeyboardButton("📧 Email Broker", callback_data=f"tour|{listing['id']}"))
+    else:
+        buttons.append(InlineKeyboardButton("✅ Tour it!", callback_data=f"tour|{listing['id']}"))
+    if listing.get("open_house_dates"):
+        oh = listing["open_house_dates"]
+        oh_text = f"📅 Schedule Tour ({len(oh)} open house{'s' if len(oh) > 1 else ''})"
+        buttons.append(InlineKeyboardButton(oh_text, callback_data=f"tour|{listing['id']}"))
+    buttons.append(InlineKeyboardButton("❌ Pass", callback_data=f"pass|{listing['id']}"))
+
+    keyboard = InlineKeyboardMarkup([buttons])
 
     try:
         await _telegram_app.bot.send_message(

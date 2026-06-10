@@ -189,3 +189,76 @@ async def _send_alerts(listing: Listing, db: AsyncSession):
         listing.status = "alerted"
         await db.commit()
         logger.info("Alerts sent", listing_id=listing.id, email=email_sent, telegram=telegram_sent)
+
+
+async def process_single_listing(raw, db: AsyncSession, force_alert: bool = False) -> Listing | None:
+    """Process a single manually submitted listing: normalize, score, persist, alert."""
+    from app.scrapers.models import RawListing
+
+    normalized = normalize_listing(raw)
+
+    existing = await db.execute(
+        select(Listing).where(
+            Listing.source == normalized["source"],
+            Listing.source_id == normalized["source_id"],
+        )
+    )
+    existing_listing = existing.scalar_one_or_none()
+
+    commute = None
+    if normalized.get("address"):
+        commute = await get_commute_minutes(normalized["address"])
+    normalized["commute_minutes"] = commute
+
+    score = score_listing(normalized)
+    if score is None:
+        score = 50.0
+    normalized["match_score"] = score
+
+    if existing_listing:
+        existing_listing.price = normalized.get("price", existing_listing.price)
+        existing_listing.last_seen = datetime.utcnow()
+        existing_listing.is_active = True
+        existing_listing.commute_minutes = commute or existing_listing.commute_minutes
+        existing_listing.match_score = score
+        existing_listing.amenities = normalized.get("amenities") or existing_listing.amenities
+        existing_listing.broker_name = normalized.get("broker_name") or existing_listing.broker_name
+        existing_listing.broker_email = normalized.get("broker_email") or existing_listing.broker_email
+        existing_listing.broker_phone = normalized.get("broker_phone") or existing_listing.broker_phone
+        existing_listing.available_date = normalized.get("available_date") or existing_listing.available_date
+        existing_listing.open_house_dates = normalized.get("open_house_dates") or existing_listing.open_house_dates
+        existing_listing.description = normalized.get("description") or existing_listing.description
+        await db.commit()
+        listing = existing_listing
+    else:
+        listing = Listing(
+            source=normalized["source"],
+            source_id=normalized["source_id"],
+            url=normalized["url"],
+            title=normalized.get("title"),
+            price=normalized.get("price"),
+            beds=normalized.get("beds"),
+            baths=normalized.get("baths"),
+            sqft=normalized.get("sqft"),
+            address=normalized.get("address"),
+            neighborhood=normalized.get("neighborhood"),
+            borough=normalized.get("borough"),
+            amenities=normalized.get("amenities"),
+            images=normalized.get("images"),
+            broker_name=normalized.get("broker_name"),
+            broker_email=normalized.get("broker_email"),
+            broker_phone=normalized.get("broker_phone"),
+            open_house_dates=normalized.get("open_house_dates"),
+            description=normalized.get("description"),
+            available_date=normalized.get("available_date"),
+            commute_minutes=commute,
+            match_score=score,
+        )
+        db.add(listing)
+        await db.flush()
+        await db.commit()
+
+    if force_alert:
+        await _send_alerts(listing, db)
+
+    return listing

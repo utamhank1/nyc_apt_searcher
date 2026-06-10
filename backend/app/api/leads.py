@@ -76,6 +76,53 @@ async def update_lead_status(
     return {"ok": True, "listing_id": listing_id, "status": new_status}
 
 
+@router.post("/leads/submit-url")
+async def submit_listing_url(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    url = (body.get("url") or "").strip()
+    if not url:
+        return {"error": "URL is required"}
+
+    if "streeteasy.com" in url:
+        source = "streeteasy"
+    elif "zillow.com" in url:
+        source = "zillow"
+    else:
+        return {"error": "URL must be from StreetEasy or Zillow"}
+
+    try:
+        if source == "streeteasy":
+            from app.scrapers.streeteasy import StreetEasyScraper
+            scraper = StreetEasyScraper()
+            try:
+                raw = await scraper.scrape_single_listing(url)
+            finally:
+                await scraper.close()
+        else:
+            from app.scrapers.zillow import ZillowScraper
+            scraper = ZillowScraper()
+            try:
+                raw = await scraper.scrape_single_listing(url)
+            finally:
+                await scraper.close()
+
+        if not raw:
+            return {"error": "Could not scrape this listing. The page may have blocked the request."}
+
+        from app.services.scraper_service import process_single_listing
+        listing = await process_single_listing(raw, db, force_alert=True)
+
+        if not listing:
+            return {"error": "Failed to process listing"}
+
+        return {"ok": True, "listing": _listing_to_dict(listing)}
+
+    except Exception as e:
+        return {"error": f"Scraping failed: {str(e)}"}
+
+
 @router.post("/leads/{listing_id}/tour")
 async def trigger_tour(
     listing_id: int,
