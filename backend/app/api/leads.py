@@ -79,6 +79,14 @@ async def update_lead_status(
     return {"ok": True, "listing_id": listing_id, "status": new_status}
 
 
+@router.post("/leads/trigger-scrape")
+async def trigger_scrape():
+    import asyncio
+    from app.services.scraper_service import run_scrape
+    asyncio.create_task(run_scrape())
+    return {"ok": True, "message": "Scrape started in background"}
+
+
 @router.post("/leads/submit-url")
 async def submit_listing_url(
     body: dict,

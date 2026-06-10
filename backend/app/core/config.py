@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     google_calendar_refresh_token: str = ""
 
     # Scraper settings
-    scrape_interval_hours: int = 6
+    scrape_interval_hours: int = 3
 
     @property
     def boroughs_list(self) -> list[str]:

@@ -18,6 +18,7 @@ export function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [scraping, setScraping] = useState(false);
   const [submitUrl, setSubmitUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ ok?: boolean; error?: string } | null>(null);
@@ -82,6 +83,16 @@ export function LeadsPage() {
     setSendingEmail(false);
   };
 
+  const triggerScrape = async () => {
+    setScraping(true);
+    try {
+      await api.post("/api/v1/leads/trigger-scrape");
+      setTimeout(() => { fetchLeads(); setScraping(false); }, 5000);
+    } catch (e) {
+      setScraping(false);
+    }
+  };
+
   const handleSubmitUrl = async () => {
     if (!submitUrl.trim()) return;
     setSubmitting(true);
@@ -132,9 +143,14 @@ export function LeadsPage() {
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Hot Leads ({total})</h1>
-        <Button variant="outline" onClick={fetchLeads} disabled={loading}>
-          {loading ? "Loading..." : "Refresh"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={triggerScrape} disabled={scraping}>
+            {scraping ? "Scraping..." : "Run Scrape"}
+          </Button>
+          <Button variant="outline" onClick={fetchLeads} disabled={loading}>
+            {loading ? "Loading..." : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
