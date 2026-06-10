@@ -24,7 +24,7 @@ async def _ensure_default_search(db: AsyncSession):
 
     default = SearchConfig(
         name="Default Search",
-        is_active=True,
+        is_active=False,
         boroughs=settings.boroughs_list,
         neighborhoods=settings.neighborhoods_list,
         max_price=settings.max_price,
