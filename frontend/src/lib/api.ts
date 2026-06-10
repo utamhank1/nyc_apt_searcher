@@ -24,9 +24,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
-  if (res.status === 401) {
+  if (res.status === 401 && !path.includes("/calendar/")) {
     localStorage.removeItem("apt_api_key");
-    window.location.reload();
+    window.location.href = "/";
     throw new Error("Unauthorized");
   }
 
