@@ -417,7 +417,7 @@ export default function SettingsPage() {
               <div>
                 <Label className="text-base font-semibold">Telegram</Label>
                 <p className="text-sm text-gray-500 mb-2">Click to connect, then send /start to the bot to get your chat ID</p>
-                <a href="https://t.me/your_bot" target="_blank" rel="noopener noreferrer"><Button variant="outline">Connect Telegram Bot</Button></a>
+                <a href="https://t.me/nyc_apt_searcher_bot" target="_blank" rel="noopener noreferrer"><Button variant="outline">Connect Telegram Bot</Button></a>
               </div>
 
               <Separator />
