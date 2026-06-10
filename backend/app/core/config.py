@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     # Google Maps
     google_maps_api_key: str = ""
 
+    # Google Calendar OAuth
+    google_calendar_client_id: str = ""
+    google_calendar_client_secret: str = ""
+    google_calendar_redirect_uri: str = ""
+    google_calendar_refresh_token: str = ""
+
     # Scraper settings
     scrape_interval_hours: int = 6
 

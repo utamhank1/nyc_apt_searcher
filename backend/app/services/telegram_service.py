@@ -68,6 +68,21 @@ async def _handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 query.message.text + "\n\n✅ Tour requested! Broker email sent.",
             )
+        elif action == "preview":
+            frontend_url = settings.google_calendar_redirect_uri.replace("/api/v1/calendar/callback", "")
+            if not frontend_url:
+                frontend_url = "http://localhost:3000"
+            preview_url = f"{frontend_url}/leads?preview={listing_id}"
+            await query.edit_message_text(
+                query.message.text + f"\n\n🔍 [Preview & edit email on web]({preview_url})",
+                parse_mode="Markdown",
+                disable_web_page_preview=True,
+            )
+        elif action == "no_oh":
+            await query.answer(
+                "No open house listed. Use 'Email Broker' to ask about available times.",
+                show_alert=True,
+            )
         elif action == "pass":
             await process_no_response(listing, db)
             await query.edit_message_text(
@@ -105,18 +120,20 @@ async def send_telegram_alert(listing: dict) -> bool:
         f"Would you like to tour it?"
     )
 
-    buttons = []
-    if listing.get("broker_email"):
-        buttons.append(InlineKeyboardButton("📧 Email Broker", callback_data=f"tour|{listing['id']}"))
-    else:
-        buttons.append(InlineKeyboardButton("✅ Tour it!", callback_data=f"tour|{listing['id']}"))
-    if listing.get("open_house_dates"):
-        oh = listing["open_house_dates"]
+    row1 = [
+        InlineKeyboardButton("📧 Send Email", callback_data=f"tour|{listing['id']}"),
+        InlineKeyboardButton("🔍 Preview on Web", callback_data=f"preview|{listing['id']}"),
+    ]
+    row2 = []
+    oh = listing.get("open_house_dates") or []
+    if oh:
         oh_text = f"📅 Schedule Tour ({len(oh)} open house{'s' if len(oh) > 1 else ''})"
-        buttons.append(InlineKeyboardButton(oh_text, callback_data=f"tour|{listing['id']}"))
-    buttons.append(InlineKeyboardButton("❌ Pass", callback_data=f"pass|{listing['id']}"))
+        row2.append(InlineKeyboardButton(oh_text, callback_data=f"tour|{listing['id']}"))
+    else:
+        row2.append(InlineKeyboardButton("📅 Schedule Tour (none listed)", callback_data=f"no_oh|{listing['id']}"))
+    row2.append(InlineKeyboardButton("❌ Pass", callback_data=f"pass|{listing['id']}"))
 
-    keyboard = InlineKeyboardMarkup([buttons])
+    keyboard = InlineKeyboardMarkup([row1, row2])
 
     try:
         await _telegram_app.bot.send_message(

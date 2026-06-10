@@ -123,6 +123,49 @@ async def submit_listing_url(
         return {"error": f"Scraping failed: {str(e)}"}
 
 
+@router.post("/leads/{listing_id}/preview-email")
+async def preview_broker_email(
+    listing_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Listing).where(Listing.id == listing_id))
+    listing = result.scalar_one_or_none()
+    if not listing:
+        return {"error": "Listing not found"}
+
+    from app.services.email_service import get_broker_email_preview
+    preview = await get_broker_email_preview(listing)
+    return {"ok": True, "listing_id": listing_id, **preview}
+
+
+@router.post("/leads/{listing_id}/send-email")
+async def send_custom_broker_email(
+    listing_id: int,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Listing).where(Listing.id == listing_id))
+    listing = result.scalar_one_or_none()
+    if not listing:
+        return {"error": "Listing not found"}
+
+    from app.services.email_service import send_custom_broker_email as send_email
+    sent = await send_email(
+        listing,
+        subject=body.get("subject", ""),
+        body_text=body.get("body", ""),
+    )
+
+    if sent:
+        listing.broker_email_sent = True
+        from datetime import datetime
+        listing.broker_email_sent_at = datetime.utcnow()
+        listing.status = "tour_scheduled"
+        await db.commit()
+
+    return {"ok": sent, "listing_id": listing_id}
+
+
 @router.post("/leads/{listing_id}/tour")
 async def trigger_tour(
     listing_id: int,

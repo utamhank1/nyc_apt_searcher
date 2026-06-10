@@ -6,8 +6,11 @@ import { Listing, LeadsResponse, STATUS_COLORS, STATUS_LABELS } from "@/lib/type
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export function LeadsPage() {
   const [leads, setLeads] = useState<Listing[]>([]);
@@ -18,6 +21,9 @@ export function LeadsPage() {
   const [submitUrl, setSubmitUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ ok?: boolean; error?: string } | null>(null);
+  const [emailPreview, setEmailPreview] = useState<{ listingId: number; subject: string; body: string; brokerEmail: string } | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [noOhDialog, setNoOhDialog] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("match_score");
 
@@ -49,6 +55,31 @@ export function LeadsPage() {
   const triggerTour = async (id: number) => {
     await api.post(`/api/v1/leads/${id}/tour`);
     fetchLeads();
+  };
+
+  const openEmailPreview = async (listingId: number) => {
+    try {
+      const res = await api.post<{ subject: string; body: string; broker_email: string }>(`/api/v1/leads/${listingId}/preview-email`);
+      setEmailPreview({ listingId, subject: res.subject, body: res.body, brokerEmail: res.broker_email });
+    } catch (e) {
+      console.error("Failed to load preview", e);
+    }
+  };
+
+  const sendPreviewEmail = async () => {
+    if (!emailPreview) return;
+    setSendingEmail(true);
+    try {
+      await api.post(`/api/v1/leads/${emailPreview.listingId}/send-email`, {
+        subject: emailPreview.subject,
+        body: emailPreview.body,
+      });
+      setEmailPreview(null);
+      fetchLeads();
+    } catch (e) {
+      console.error("Failed to send", e);
+    }
+    setSendingEmail(false);
   };
 
   const handleSubmitUrl = async () => {
@@ -152,8 +183,10 @@ export function LeadsPage() {
           <LeadCard
             key={lead.id}
             lead={lead}
+            onEmailPreview={() => openEmailPreview(lead.id)}
             onTour={() => triggerTour(lead.id)}
             onPass={() => updateStatus(lead.id, "passed")}
+            onNoOpenHouse={() => setNoOhDialog(true)}
           />
         ))}
         {!loading && leads.length === 0 && (
@@ -162,22 +195,78 @@ export function LeadsPage() {
           </Card>
         )}
       </div>
+
+      {/* Email Preview Dialog */}
+      <Dialog open={!!emailPreview} onOpenChange={(open) => !open && setEmailPreview(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Preview Broker Email</DialogTitle>
+          </DialogHeader>
+          {emailPreview && (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-500">To: {emailPreview.brokerEmail || "No broker email found"}</div>
+              <div>
+                <Label className="text-sm">Subject</Label>
+                <Input
+                  value={emailPreview.subject}
+                  onChange={(e) => setEmailPreview({ ...emailPreview, subject: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-sm">Body</Label>
+                <Textarea
+                  value={emailPreview.body}
+                  onChange={(e) => setEmailPreview({ ...emailPreview, body: e.target.value })}
+                  rows={12}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailPreview(null)}>Cancel</Button>
+            <Button onClick={sendPreviewEmail} disabled={sendingEmail || !emailPreview?.brokerEmail}>
+              {sendingEmail ? "Sending..." : "Send Email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* No Open House Dialog */}
+      <Dialog open={noOhDialog} onOpenChange={setNoOhDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>No Open House Listed</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            There isn&apos;t an open house scheduled for this apartment. You can email the broker to coordinate a viewing time.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoOhDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function LeadCard({ lead, onTour, onPass }: { lead: Listing; onTour: () => void; onPass: () => void }) {
+function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
+  lead: Listing;
+  onEmailPreview: () => void;
+  onTour: () => void;
+  onPass: () => void;
+  onNoOpenHouse: () => void;
+}) {
   const statusClass = STATUS_COLORS[lead.status] || "bg-gray-100 text-gray-600";
+  const hasOpenHouse = lead.open_house_dates && lead.open_house_dates.length > 0;
 
   return (
     <Card className="p-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        {/* Score */}
         <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-lg">
           {lead.match_score ?? "?"}
         </div>
 
-        {/* Details */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold truncate">{lead.address || lead.title || "Unknown address"}</h3>
@@ -202,15 +291,25 @@ function LeadCard({ lead, onTour, onPass }: { lead: Listing; onTour: () => void;
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-2 flex-shrink-0 flex-wrap">
           <a href={lead.url} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">View</Button>
           </a>
-          {lead.status !== "tour_scheduled" && lead.status !== "passed" && (
-            <Button size="sm" onClick={onTour} className="bg-green-600 hover:bg-green-700">
-              Tour
+          {lead.status !== "passed" && (
+            <Button size="sm" variant="outline" onClick={onEmailPreview}>
+              Email Broker
             </Button>
+          )}
+          {lead.status !== "passed" && (
+            hasOpenHouse ? (
+              <Button size="sm" onClick={onTour} className="bg-green-600 hover:bg-green-700">
+                Schedule Tour
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" disabled className="opacity-50" onClick={onNoOpenHouse}>
+                Schedule Tour
+              </Button>
+            )
           )}
           {lead.status !== "passed" && (
             <Button variant="ghost" size="sm" onClick={onPass} className="text-gray-500">

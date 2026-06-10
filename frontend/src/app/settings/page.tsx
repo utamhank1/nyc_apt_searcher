@@ -423,11 +423,7 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div>
-                <Label className="text-base font-semibold">Google Calendar</Label>
-                <p className="text-sm text-gray-500 mb-2">Coming soon — auto-schedule open house visits</p>
-                <Button variant="outline" disabled>Connect Google Calendar (Coming Soon)</Button>
-              </div>
+              <GoogleCalendarSection />
             </Card>
           </TabsContent>
 
@@ -461,5 +457,53 @@ export default function SettingsPage() {
         </Tabs>
       </main>
     </>
+  );
+}
+
+function GoogleCalendarSection() {
+  const [status, setStatus] = useState<{ connected: boolean } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.get<{ connected: boolean }>("/api/v1/calendar/status").then(setStatus).catch(() => {});
+  }, []);
+
+  const connect = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get<{ auth_url?: string; error?: string }>("/api/v1/calendar/authorize");
+      if (res.auth_url) {
+        window.open(res.auth_url, "_blank");
+      } else if (res.error) {
+        alert(res.error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  const disconnect = async () => {
+    await api.get("/api/v1/calendar/disconnect");
+    setStatus({ connected: false });
+  };
+
+  return (
+    <div>
+      <Label className="text-base font-semibold">Google Calendar</Label>
+      <p className="text-sm text-gray-500 mb-2">
+        Connect to include your available times in broker emails (20 min travel buffer + 15 min tour)
+      </p>
+      {status?.connected ? (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-green-600 font-medium">✅ Connected</span>
+          <Button variant="outline" size="sm" onClick={disconnect}>Disconnect</Button>
+        </div>
+      ) : (
+        <Button variant="outline" onClick={connect} disabled={loading}>
+          {loading ? "Opening..." : "Connect Google Calendar"}
+        </Button>
+      )}
+    </div>
   );
 }

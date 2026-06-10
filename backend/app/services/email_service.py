@@ -120,6 +120,19 @@ def _build_broker_email(listing: dict) -> tuple[str, str]:
         "{{available_date}}": listing.get("available_date") or "Not specified",
     }
 
+    # Get available times from Google Calendar if connected
+    available_times_text = ""
+    from app.services.calendar_service import is_calendar_connected, get_available_times, format_availability_for_email
+    if is_calendar_connected():
+        try:
+            import asyncio
+            slots = asyncio.get_event_loop().run_until_complete(get_available_times())
+            available_times_text = format_availability_for_email(slots)
+        except RuntimeError:
+            pass
+
+    placeholders["{{available_times}}"] = available_times_text
+
     if settings.use_custom_email_template:
         subject = settings.custom_email_subject
         body = settings.custom_email_body
@@ -130,7 +143,12 @@ def _build_broker_email(listing: dict) -> tuple[str, str]:
             "I came across your listing at {{address}} "
             "({{beds}}BR/{{baths}}BA, {{price}}/mo) and "
             "I'm very interested in scheduling a viewing.\n\n"
-            "Could you share available times this week?\n\n"
+        )
+        if available_times_text:
+            body += available_times_text + "\n\n"
+        else:
+            body += "Could you share available times this week?\n\n"
+        body += (
             "Best regards,\n"
             "{{your_name}}\n"
             "{{your_phone}}"
@@ -141,3 +159,66 @@ def _build_broker_email(listing: dict) -> tuple[str, str]:
         body = body.replace(placeholder, str(value))
 
     return subject, body
+
+
+def _listing_obj_to_dict(listing) -> dict:
+    return {
+        "address": listing.address or "the listed address",
+        "price": listing.price,
+        "beds": listing.beds,
+        "baths": listing.baths,
+        "sqft": listing.sqft,
+        "neighborhood": listing.neighborhood or "",
+        "source": listing.source or "",
+        "url": listing.url or "",
+        "broker_name": listing.broker_name or "",
+        "broker_email": listing.broker_email or "",
+        "available_date": listing.available_date,
+    }
+
+
+async def get_broker_email_preview(listing) -> dict:
+    """Return the rendered broker email subject + body without sending."""
+    listing_dict = _listing_obj_to_dict(listing)
+    subject, body = _build_broker_email(listing_dict)
+    return {
+        "subject": subject,
+        "body": body,
+        "broker_email": listing.broker_email or "",
+        "broker_name": listing.broker_name or "",
+    }
+
+
+async def send_custom_broker_email(listing, subject: str, body_text: str) -> bool:
+    """Send a broker email with custom subject/body (from user edits)."""
+    _init_resend()
+    if not settings.resend_api_key:
+        return False
+
+    broker_email = listing.broker_email
+    if not broker_email:
+        logger.warning("No broker email", listing_id=listing.id)
+        return False
+
+    cc_list = []
+    if settings.user_email:
+        cc_list.append(settings.user_email)
+    cc_list.extend(settings.search_partner_emails_list)
+    cc_list = [e for e in cc_list if e][:4]
+
+    try:
+        params = {
+            "from": settings.resend_from_email,
+            "to": broker_email,
+            "subject": subject,
+            "text": body_text,
+        }
+        if cc_list:
+            params["cc"] = cc_list
+
+        resend.Emails.send(params)
+        logger.info("Custom broker email sent", listing_id=listing.id)
+        return True
+    except Exception as e:
+        logger.error("Failed to send custom broker email", error=str(e))
+        return False
