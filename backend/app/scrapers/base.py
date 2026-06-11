@@ -45,6 +45,10 @@ class BaseScraper(ABC):
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-extensions",
+                "--disable-software-rasterizer",
+                "--js-flags=--max-old-space-size=256",
             ],
         )
         return self._browser

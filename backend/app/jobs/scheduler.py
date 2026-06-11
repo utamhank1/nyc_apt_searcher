@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta
+
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.date import DateTrigger
 
 from app.core.config import settings
 
@@ -33,8 +36,13 @@ async def start_scheduler() -> AsyncIOScheduler:
     _scheduler.start()
     logger.info("Scheduler started", interval_hours=settings.scrape_interval_hours)
 
-    # Run initial scrape on startup
-    _scheduler.add_job(_scrape_job, id="initial_scrape", name="Initial scrape")
+    # Run initial scrape 15 seconds after startup (let app + Telegram fully start)
+    _scheduler.add_job(
+        _scrape_job,
+        trigger=DateTrigger(run_date=datetime.utcnow() + timedelta(seconds=15)),
+        id="initial_scrape",
+        name="Initial scrape (delayed)",
+    )
 
     return _scheduler
 

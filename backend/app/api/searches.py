@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
@@ -8,6 +9,18 @@ from app.core.database import get_db
 from app.models.search_config import SearchConfig
 
 router = APIRouter(tags=["searches"])
+
+
+def _ensure_list(val) -> list:
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            return parsed if isinstance(parsed, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return [v.strip() for v in val.split(",") if v.strip()]
+    return []
 
 MAX_ACTIVE = 3
 
@@ -24,14 +37,14 @@ async def create_search(body: dict, db: AsyncSession = Depends(get_db)):
     search = SearchConfig(
         name=body.get("name", "Untitled Search"),
         is_active=False,
-        boroughs=body.get("boroughs", ["Manhattan", "Brooklyn"]),
-        neighborhoods=body.get("neighborhoods", []),
+        boroughs=_ensure_list(body.get("boroughs", ["Manhattan", "Brooklyn"])),
+        neighborhoods=_ensure_list(body.get("neighborhoods", [])),
         max_price=body.get("max_price", 3500),
         min_price=body.get("min_price", 0),
         min_beds=body.get("min_beds", 1),
         min_baths=body.get("min_baths", 1),
-        must_have_amenities=body.get("must_have_amenities", []),
-        preferred_amenities=body.get("preferred_amenities", []),
+        must_have_amenities=_ensure_list(body.get("must_have_amenities", [])),
+        preferred_amenities=_ensure_list(body.get("preferred_amenities", [])),
         work_address=body.get("work_address", ""),
         lead_score_threshold=body.get("lead_score_threshold", 70),
         sources_enabled=body.get("sources_enabled", {"streeteasy": True, "zillow": True}),
@@ -56,12 +69,16 @@ async def update_search(search_id: int, body: dict, db: AsyncSession = Depends(g
     if search.is_active:
         return {"error": "Cannot edit an active search. Deactivate it first."}
 
+    list_fields = {"boroughs", "neighborhoods", "must_have_amenities", "preferred_amenities"}
     for field in ["name", "boroughs", "neighborhoods", "max_price", "min_price", "min_beds",
                    "min_baths", "must_have_amenities", "preferred_amenities", "work_address",
                    "lead_score_threshold", "sources_enabled", "move_in_mode", "move_in_date",
                    "move_in_range_start", "move_in_range_end", "move_in_only"]:
         if field in body:
-            setattr(search, field, body[field])
+            val = body[field]
+            if field in list_fields:
+                val = _ensure_list(val)
+            setattr(search, field, val)
 
     search.updated_at = datetime.utcnow()
     await db.commit()
