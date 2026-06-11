@@ -30,3 +30,20 @@ async def init_db():
     import app.models.calendar_connection  # noqa
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Add columns that may be missing from existing tables
+    async with engine.begin() as conn:
+        for col, coltype, default in [
+            ("is_favorite", "BOOLEAN", "FALSE"),
+            ("search_config_id", "INTEGER", "NULL"),
+            ("search_name", "VARCHAR(100)", "NULL"),
+            ("available_date", "VARCHAR(20)", "NULL"),
+        ]:
+            try:
+                await conn.execute(
+                    __import__("sqlalchemy").text(
+                        f"ALTER TABLE listings ADD COLUMN {col} {coltype} DEFAULT {default}"
+                    )
+                )
+            except Exception:
+                pass  # column already exists
