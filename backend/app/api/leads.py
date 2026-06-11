@@ -119,6 +119,9 @@ async def submit_listing_url(
     body: dict,
     db: AsyncSession = Depends(get_db),
 ):
+    import re
+    import hashlib
+
     url = (body.get("url") or "").strip()
     if not url:
         return {"error": "URL is required"}
@@ -127,38 +130,53 @@ async def submit_listing_url(
         source = "streeteasy"
     elif "zillow.com" in url:
         source = "zillow"
+    elif "realtor.com" in url:
+        source = "realtor"
     else:
-        return {"error": "URL must be from StreetEasy or Zillow"}
+        return {"error": "URL must be from StreetEasy, Zillow, or Realtor.com"}
 
-    try:
-        if source == "streeteasy":
-            from app.scrapers.streeteasy import StreetEasyScraper
-            scraper = StreetEasyScraper()
-            try:
-                raw = await scraper.scrape_single_listing(url)
-            finally:
-                await scraper.close()
-        else:
-            from app.scrapers.zillow import ZillowScraper
-            scraper = ZillowScraper()
-            try:
-                raw = await scraper.scrape_single_listing(url)
-            finally:
-                await scraper.close()
+    # Extract source_id from URL
+    id_match = re.search(r"/(\d+)(?:_zpid|$|\?)", url)
+    source_id = id_match.group(1) if id_match else hashlib.md5(url.encode()).hexdigest()[:12]
 
-        if not raw:
-            return {"error": "Could not scrape this listing. The page may have blocked the request."}
+    # Extract address hint from URL path
+    path_parts = url.rstrip("/").split("/")
+    address_hint = path_parts[-1] if path_parts else ""
+    address_hint = re.sub(r"[-_]", " ", address_hint).replace(str(source_id), "").strip()
+    address_hint = address_hint.title() if address_hint else f"Manual listing from {source}"
 
-        from app.services.scraper_service import process_single_listing
-        listing = await process_single_listing(raw, db, force_alert=True)
+    # Check for existing
+    existing = await db.execute(
+        select(Listing).where(Listing.source == source, Listing.source_id == source_id)
+    )
+    listing = existing.scalar_one_or_none()
 
-        if not listing:
-            return {"error": "Failed to process listing"}
+    if listing:
+        return {"ok": True, "listing": _listing_to_dict(listing), "message": "Listing already tracked"}
 
-        return {"ok": True, "listing": _listing_to_dict(listing)}
+    # Create lightweight listing (no scraping)
+    listing = Listing(
+        source=source,
+        source_id=source_id,
+        url=url,
+        title=address_hint,
+        address=address_hint,
+        search_name="Manual",
+        match_score=50,
+        status="new",
+    )
+    db.add(listing)
+    await db.flush()
+    await db.commit()
 
-    except Exception as e:
-        return {"error": f"Scraping failed: {str(e)}"}
+    # Send Telegram alert
+    from app.services.telegram_service import send_telegram_alert
+    listing_dict = _listing_to_dict(listing)
+    listing_dict["search_name"] = "Manual"
+    listing_dict["open_house_dates"] = []
+    await send_telegram_alert(listing_dict)
+
+    return {"ok": True, "listing": _listing_to_dict(listing)}
 
 
 @router.post("/leads/{listing_id}/preview-email")
