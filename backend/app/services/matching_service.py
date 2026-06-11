@@ -106,10 +106,11 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
 
     score = 0.0
 
+    # Scoring weights: Neighborhood 40, Price 25, Amenities 20, Commute 15
     if max_price and listing_data.get("price"):
         price_ratio = listing_data["price"] / max_price
         if price_ratio <= 1.0:
-            score += (1 - price_ratio) * 30
+            score += (1 - price_ratio) * 25
         else:
             score += max(0, (1 - (price_ratio - 1) * 5)) * 10
 
@@ -124,7 +125,7 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
                 matched_nh = True
                 break
         if matched_nh:
-            score += 25
+            score += 40
         elif listing_data.get("borough") in boroughs:
             score += 10
 
@@ -134,12 +135,12 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
         preferred_lower = {a.lower() for a in preferred}
         overlap = len(listing_amenities_lower & preferred_lower)
         if len(preferred_lower) > 0:
-            score += (overlap / len(preferred_lower)) * 25
+            score += (overlap / len(preferred_lower)) * 20
 
     max_commute = 60
     if listing_data.get("commute_minutes") is not None:
         commute = listing_data["commute_minutes"]
         if commute <= max_commute:
-            score += (1 - commute / max_commute) * 20
+            score += (1 - commute / max_commute) * 15
 
     return round(score, 1)
