@@ -116,7 +116,7 @@ async def _run_search(search_config: SearchConfig, db: AsyncSession):
 
             score = score_listing(normalized, criteria)
             if score is None:
-                continue
+                score = 0.0
 
             normalized["match_score"] = score
 
