@@ -288,17 +288,20 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
 }) {
   const statusClass = STATUS_COLORS[lead.status] || "bg-gray-100 text-gray-600";
   const hasOpenHouse = lead.open_house_dates && lead.open_house_dates.length > 0;
+  const isPassed = lead.status === "passed";
 
   return (
-    <Card className="p-4">
+    <Card className={`p-4 ${isPassed ? "opacity-50 bg-gray-50" : ""}`}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-lg">
+        <div className={`flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg ${isPassed ? "bg-gray-400 text-white" : "bg-gray-900 text-white"}`}>
           {lead.match_score ?? "?"}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold truncate">{lead.address || lead.title || "Unknown address"}</h3>
+            <a href={lead.url} target="_blank" rel="noopener noreferrer" className="font-semibold truncate hover:text-blue-600 hover:underline">
+              {lead.address || lead.title || "Unknown address"}
+            </a>
             <Badge className={statusClass}>{STATUS_LABELS[lead.status] || lead.status}</Badge>
             <Badge variant="outline" className="text-xs">{lead.source}</Badge>
             {lead.search_name && <Badge variant="secondary" className="text-xs">{lead.search_name}</Badge>}
@@ -325,12 +328,12 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
           <a href={lead.url} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">View</Button>
           </a>
-          {lead.status !== "passed" && (
+          {!isPassed && (
             <Button size="sm" variant="outline" onClick={onEmailPreview}>
               Email Broker
             </Button>
           )}
-          {lead.status !== "passed" && (
+          {!isPassed && (
             hasOpenHouse ? (
               <Button size="sm" onClick={onTour} className="bg-green-600 hover:bg-green-700">
                 Schedule Tour
@@ -341,7 +344,11 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
               </Button>
             )
           )}
-          {lead.status !== "passed" && (
+          {isPassed ? (
+            <Button variant="ghost" size="sm" disabled className="text-red-500">
+              ❌ Passed
+            </Button>
+          ) : (
             <Button variant="ghost" size="sm" onClick={onPass} className="text-gray-500">
               Pass
             </Button>
