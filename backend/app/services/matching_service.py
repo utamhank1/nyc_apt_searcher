@@ -76,6 +76,24 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
             logger.debug("Filtered: borough mismatch", listing_borough=listing_data["borough"], allowed=boroughs)
             return None
 
+    # Hard neighborhood filter: if neighborhoods are specified, listing must be in one
+    neighborhoods = criteria.get("neighborhoods", [])
+    if neighborhoods:
+        listing_nh = (listing_data.get("neighborhood") or "").lower()
+        listing_city = (listing_data.get("address") or "").lower()
+        matched = False
+        for nh in neighborhoods:
+            nh_lower = nh.lower()
+            if listing_nh and nh_lower in listing_nh:
+                matched = True
+                break
+            if nh_lower in listing_city:
+                matched = True
+                break
+        if not matched:
+            logger.debug("Filtered: neighborhood mismatch", listing_nh=listing_nh, allowed=neighborhoods[:5])
+            return None
+
     max_price = criteria.get("max_price", 0)
     if max_price and listing_data.get("price"):
         if listing_data["price"] > max_price * 1.05:
