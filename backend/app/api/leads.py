@@ -116,6 +116,44 @@ async def update_lead_status(
     return {"ok": True, "listing_id": listing_id}
 
 
+@router.post("/leads/rescore")
+async def rescore_all(db: AsyncSession = Depends(get_db)):
+    """Re-score all active listings using the current active search configs."""
+    from app.models.search_config import SearchConfig
+    from app.services.matching_service import score_listing
+
+    searches = (await db.execute(select(SearchConfig).where(SearchConfig.is_active == True))).scalars().all()
+    if not searches:
+        return {"error": "No active searches"}
+
+    listings = (await db.execute(select(Listing).where(Listing.is_active == True))).scalars().all()
+    updated = 0
+    for listing in listings:
+        best_score = 0.0
+        best_search = None
+        listing_data = {
+            "borough": listing.borough, "neighborhood": listing.neighborhood,
+            "price": listing.price, "beds": listing.beds, "address": listing.address,
+            "amenities": listing.amenities or [], "commute_minutes": listing.commute_minutes,
+            "available_date": listing.available_date,
+        }
+        for search in searches:
+            score = score_listing(listing_data, search.to_criteria_dict())
+            if score is not None and score > best_score:
+                best_score = score
+                best_search = search
+        if score is None:
+            best_score = 0.0
+        listing.match_score = best_score
+        if best_search:
+            listing.search_name = best_search.name
+            listing.search_config_id = best_search.id
+        updated += 1
+
+    await db.commit()
+    return {"ok": True, "updated": updated}
+
+
 @router.post("/leads/send-telegram-alert")
 async def send_listing_telegram_alert(body: dict, db: AsyncSession = Depends(get_db)):
     listing_id = body.get("listing_id")

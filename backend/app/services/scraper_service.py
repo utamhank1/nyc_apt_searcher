@@ -114,9 +114,12 @@ async def _run_search(search_config: SearchConfig, db: AsyncSession):
                 commute = await get_commute_minutes(normalized["address"])
             normalized["commute_minutes"] = commute
 
-            score = score_listing(normalized, criteria)
-            if score is None:
+            raw_score = score_listing(normalized, criteria)
+            if raw_score is None:
+                logger.debug("Listing hard-filtered, assigning score=0", address=normalized.get("address", "")[:50])
                 score = 0.0
+            else:
+                score = raw_score
 
             normalized["match_score"] = score
 
