@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api, hasApiKey } from "@/lib/api";
-import { SearchConfig, ALL_BOROUGHS, ALL_AMENITIES, NEIGHBORHOODS_BY_BOROUGH } from "@/lib/types";
+import { SearchConfig } from "@/lib/types";
 import { NavBar } from "@/components/nav-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +47,6 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [neighborhoodInput, setNeighborhoodInput] = useState("");
   const [partnerInput, setPartnerInput] = useState("");
 
   useEffect(() => {
@@ -89,49 +87,6 @@ export default function SettingsPage() {
 
   if (!mounted) return null;
 
-  const toggleBorough = (b: string) => {
-    setConfig({
-      ...config,
-      boroughs: config.boroughs.includes(b)
-        ? config.boroughs.filter((x) => x !== b)
-        : [...config.boroughs, b],
-    });
-  };
-
-  const toggleAmenity = (a: string, type: "must" | "preferred") => {
-    if (type === "must") {
-      const has = config.must_have_amenities.includes(a);
-      setConfig({
-        ...config,
-        must_have_amenities: has
-          ? config.must_have_amenities.filter((x) => x !== a)
-          : [...config.must_have_amenities, a],
-        preferred_amenities: config.preferred_amenities.filter((x) => x !== a),
-      });
-    } else {
-      const has = config.preferred_amenities.includes(a);
-      setConfig({
-        ...config,
-        preferred_amenities: has
-          ? config.preferred_amenities.filter((x) => x !== a)
-          : [...config.preferred_amenities, a],
-        must_have_amenities: config.must_have_amenities.filter((x) => x !== a),
-      });
-    }
-  };
-
-  const addNeighborhood = () => {
-    const n = neighborhoodInput.trim();
-    if (n && !config.neighborhoods.includes(n)) {
-      setConfig({ ...config, neighborhoods: [...config.neighborhoods, n] });
-      setNeighborhoodInput("");
-    }
-  };
-
-  const removeNeighborhood = (n: string) => {
-    setConfig({ ...config, neighborhoods: config.neighborhoods.filter((x) => x !== n) });
-  };
-
   const addPartner = () => {
     const e = partnerInput.trim();
     if (e && !config.search_partner_emails.includes(e) && config.search_partner_emails.length < 3) {
@@ -166,219 +121,11 @@ export default function SettingsPage() {
           </Card>
         )}
 
-        <Tabs defaultValue="filters">
+        <Tabs defaultValue="connections">
           <TabsList className="mb-4">
-            <TabsTrigger value="filters">Search Filters</TabsTrigger>
             <TabsTrigger value="connections">Connections & Partners</TabsTrigger>
             <TabsTrigger value="template">Email Template</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="filters">
-            <Card className="p-6 space-y-6">
-              <div>
-                <Label className="text-base font-semibold">Boroughs</Label>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {ALL_BOROUGHS.map((b) => (
-                    <button
-                      key={b}
-                      onClick={() => toggleBorough(b)}
-                      className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                        config.boroughs.includes(b)
-                          ? "bg-gray-900 text-white border-gray-900"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                      }`}
-                    >
-                      {config.boroughs.includes(b) ? "✓ " : ""}{b}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-base font-semibold">Neighborhoods</Label>
-                {config.boroughs.length === 0 && <p className="text-xs text-gray-400 mt-1">Select boroughs first</p>}
-                <div className="flex gap-1 mt-2 flex-wrap max-h-48 overflow-y-auto">
-                  {config.boroughs.flatMap((b) => (NEIGHBORHOODS_BY_BOROUGH[b] || []).map((n) => {
-                    const selected = config.neighborhoods.includes(n);
-                    return (
-                      <button key={n} onClick={() => {
-                        if (selected) removeNeighborhood(n);
-                        else setConfig({ ...config, neighborhoods: [...config.neighborhoods, n] });
-                      }}
-                        className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${selected ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
-                        {selected ? "✓ " : ""}{n}
-                      </button>
-                    );
-                  }))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Min Price ($)</Label>
-                  <Input type="number" value={config.min_price} onChange={(e) => setConfig({ ...config, min_price: parseInt(e.target.value) || 0 })} />
-                </div>
-                <div>
-                  <Label>Max Price ($)</Label>
-                  <Input type="number" value={config.max_price} onChange={(e) => setConfig({ ...config, max_price: parseInt(e.target.value) || 0 })} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Min Bedrooms</Label>
-                  <Input type="number" min={0} value={config.min_beds} onChange={(e) => setConfig({ ...config, min_beds: parseInt(e.target.value) || 0 })} />
-                </div>
-                <div>
-                  <Label>Min Bathrooms</Label>
-                  <Input type="number" min={0} step={0.5} value={config.min_baths} onChange={(e) => setConfig({ ...config, min_baths: parseFloat(e.target.value) || 0 })} />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Move-In Date */}
-              <div>
-                <Label className="text-base font-semibold">Move-In Date</Label>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {[
-                    { value: "", label: "Any" },
-                    { value: "immediately", label: "Available Immediately" },
-                    { value: "date", label: "By Specific Date" },
-                    { value: "range", label: "Date Range" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setConfig({ ...config, move_in_mode: opt.value })}
-                      className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                        config.move_in_mode === opt.value
-                          ? "bg-gray-900 text-white border-gray-900"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                      }`}
-                    >
-                      {config.move_in_mode === opt.value ? "✓ " : ""}{opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {config.move_in_mode === "date" && (
-                  <div className="mt-3">
-                    <Label className="text-sm">Available by</Label>
-                    <Input
-                      type="date"
-                      value={config.move_in_date}
-                      onChange={(e) => setConfig({ ...config, move_in_date: e.target.value })}
-                      className="w-48"
-                    />
-                  </div>
-                )}
-
-                {config.move_in_mode === "range" && (
-                  <div className="grid grid-cols-2 gap-4 mt-3">
-                    <div>
-                      <Label className="text-sm">From</Label>
-                      <Input
-                        type="date"
-                        value={config.move_in_range_start}
-                        onChange={(e) => setConfig({ ...config, move_in_range_start: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm">To</Label>
-                      <Input
-                        type="date"
-                        value={config.move_in_range_end}
-                        onChange={(e) => setConfig({ ...config, move_in_range_end: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {config.move_in_mode && (
-                  <div className="flex items-center gap-3 mt-3">
-                    <Switch
-                      checked={config.move_in_only}
-                      onCheckedChange={(checked) => setConfig({ ...config, move_in_only: checked })}
-                    />
-                    <div>
-                      <span className="text-sm font-medium">Only show matching dates</span>
-                      {config.move_in_only && (
-                        <p className="text-xs text-yellow-600 mt-0.5">
-                          ⚠️ This may significantly limit results — listings without an availability date will be excluded
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="text-base font-semibold">Amenities</Label>
-                <p className="text-sm text-gray-500 mb-2">Click once for &quot;nice to have&quot;, click again for &quot;must have&quot; (required)</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {ALL_AMENITIES.map((a) => {
-                    const isMust = config.must_have_amenities.includes(a);
-                    const isPref = config.preferred_amenities.includes(a);
-                    return (
-                      <button
-                        key={a}
-                        onClick={() => {
-                          if (!isPref && !isMust) toggleAmenity(a, "preferred");
-                          else if (isPref) toggleAmenity(a, "must");
-                          else setConfig({ ...config, must_have_amenities: config.must_have_amenities.filter(x => x !== a) });
-                        }}
-                        className={`px-3 py-2 rounded-md text-sm text-left border transition-colors ${
-                          isMust ? "bg-red-50 text-red-700 border-red-300 font-medium"
-                          : isPref ? "bg-blue-50 text-blue-700 border-blue-300"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                        }`}
-                      >
-                        {isMust ? "MUST: " : isPref ? "✓ " : ""}{a}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="text-base font-semibold">Listing Sources</Label>
-                <div className="space-y-3 mt-2">
-                  {["streeteasy", "zillow"].map((source) => (
-                    <div key={source} className="flex items-center justify-between">
-                      <span className="font-medium">{source === "streeteasy" ? "StreetEasy" : "Zillow"}</span>
-                      <Switch
-                        checked={config.sources_enabled[source] ?? true}
-                        onCheckedChange={(checked) => setConfig({ ...config, sources_enabled: { ...config.sources_enabled, [source]: checked } })}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="text-base font-semibold">Lead Score Threshold: {config.lead_score_threshold}</Label>
-                <p className="text-sm text-gray-500 mb-2">Only alert for listings scoring at or above this value</p>
-                <Slider
-                  value={[config.lead_score_threshold]}
-                  onValueChange={(val) => setConfig({ ...config, lead_score_threshold: Array.isArray(val) ? val[0] : val })}
-                  min={0} max={100} step={5}
-                />
-              </div>
-
-              <div>
-                <Label className="text-base font-semibold">Work Address (for commute calculation)</Label>
-                <Input placeholder="e.g. 123 Broadway, New York, NY" value={config.work_address} onChange={(e) => setConfig({ ...config, work_address: e.target.value })} className="mt-2" />
-              </div>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="connections">
             <Card className="p-6 space-y-6">

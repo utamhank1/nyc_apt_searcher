@@ -307,6 +307,44 @@ function SearchFormDialog({ search, open, onClose, onSave }: {
             <Label>Work Address</Label>
             <Input value={form.work_address} onChange={(e) => setForm({ ...form, work_address: e.target.value })} placeholder="e.g. 123 Broadway, New York, NY" className="text-sm" />
           </div>
+
+          <Separator />
+
+          <div>
+            <Label>Move-In Date</Label>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {[
+                { value: "", label: "Any" },
+                { value: "immediately", label: "Immediately" },
+                { value: "date", label: "By Date" },
+                { value: "range", label: "Date Range" },
+              ].map((opt) => (
+                <button key={opt.value} onClick={() => setForm({ ...form, move_in_mode: opt.value })}
+                  className={`px-2 py-1 rounded text-xs border ${form.move_in_mode === opt.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}>
+                  {form.move_in_mode === opt.value ? "✓ " : ""}{opt.label}
+                </button>
+              ))}
+            </div>
+            {form.move_in_mode === "date" && (
+              <div className="mt-2">
+                <Label className="text-xs">Available by</Label>
+                <Input type="date" value={form.move_in_date} onChange={(e) => setForm({ ...form, move_in_date: e.target.value })} className="w-48 text-sm" />
+              </div>
+            )}
+            {form.move_in_mode === "range" && (
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div><Label className="text-xs">From</Label><Input type="date" value={form.move_in_range_start} onChange={(e) => setForm({ ...form, move_in_range_start: e.target.value })} className="text-sm" /></div>
+                <div><Label className="text-xs">To</Label><Input type="date" value={form.move_in_range_end} onChange={(e) => setForm({ ...form, move_in_range_end: e.target.value })} className="text-sm" /></div>
+              </div>
+            )}
+            {form.move_in_mode && (
+              <div className="flex items-center gap-2 mt-2">
+                <Switch checked={form.move_in_only} onCheckedChange={(c) => setForm({ ...form, move_in_only: c })} />
+                <span className="text-xs">Only show matching dates</span>
+                {form.move_in_only && <span className="text-xs text-yellow-600">⚠️ May limit results</span>}
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter>
