@@ -73,23 +73,28 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
     boroughs = criteria.get("boroughs", [])
     if boroughs and listing_data.get("borough"):
         if listing_data["borough"] not in boroughs:
+            logger.debug("Filtered: borough mismatch", listing_borough=listing_data["borough"], allowed=boroughs)
             return None
 
     max_price = criteria.get("max_price", 0)
     if max_price and listing_data.get("price"):
         if listing_data["price"] > max_price * 1.05:
+            logger.debug("Filtered: price too high", price=listing_data["price"], max=max_price)
             return None
 
     min_beds = criteria.get("min_beds", 0)
     if min_beds and listing_data.get("beds"):
         if listing_data["beds"] < min_beds:
+            logger.debug("Filtered: too few beds", beds=listing_data["beds"], min=min_beds)
             return None
 
     must_haves = criteria.get("must_have_amenities", [])
-    if must_haves and listing_data.get("amenities"):
-        listing_amenities_lower = [a.lower() for a in listing_data["amenities"]]
+    if must_haves:
+        listing_amenities = listing_data.get("amenities") or []
+        listing_amenities_lower = [a.lower() for a in listing_amenities]
         for must_have in must_haves:
-            if must_have.lower() not in listing_amenities_lower:
+            if not any(must_have.lower() in a for a in listing_amenities_lower):
+                logger.debug("Filtered: missing must-have", missing=must_have, has=listing_amenities[:5])
                 return None
 
     date_match = _check_move_in_date(listing_data, criteria)

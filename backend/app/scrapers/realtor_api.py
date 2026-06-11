@@ -141,8 +141,9 @@ def _parse_property(prop: dict, borough: str) -> RawListing | None:
         if neighborhoods and isinstance(neighborhoods, list):
             neighborhood = neighborhoods[0].get("name", "") if neighborhoods[0] else None
 
-        county = location.get("county", {})
-        detected_borough = county.get("name", borough)
+        # Use the borough we searched for — county names don't match
+        # (e.g. county="New York" for Manhattan, county="Kings" for Brooklyn)
+        detected_borough = borough
 
         desc = prop.get("description", {})
         beds = desc.get("beds")
