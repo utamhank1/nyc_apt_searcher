@@ -149,12 +149,23 @@ def _build_broker_email(listing: dict) -> tuple[str, str]:
         body = settings.custom_email_body
     else:
         subject = "Inquiry about {{address}} - {{source}}"
-        body = (
-            "Hi {{broker_name}},\n\n"
-            "I came across your listing at {{address}} "
-            "({{beds}}BR/{{baths}}BA, {{price}}/mo) and "
-            "I'm very interested in scheduling a viewing.\n\n"
-        )
+
+        # Build details line, skipping missing fields
+        details_parts = []
+        if listing.get("beds"):
+            details_parts.append(f"{{{{beds}}}}BR")
+        if listing.get("baths"):
+            details_parts.append(f"{{{{baths}}}}BA")
+        if listing.get("price"):
+            details_parts.append(f"{{{{price}}}}/mo")
+        details_str = f" ({', '.join(details_parts)})" if details_parts else ""
+
+        body = f"Hi {{{{broker_name}}}},\n\n"
+        body += f"I came across your listing at {{{{address}}}}{details_str}"
+        if listing.get("url"):
+            body += f" ({{{{listing_url}}}})"
+        body += " and I'm very interested in scheduling a viewing.\n\n"
+
         if available_times_text:
             body += available_times_text + "\n\n"
         else:
