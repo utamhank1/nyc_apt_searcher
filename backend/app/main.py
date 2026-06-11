@@ -27,26 +27,15 @@ async def lifespan(app: FastAPI):
     from app.jobs.scheduler import start_scheduler, stop_scheduler
     scheduler = await start_scheduler()
 
-    # Start Telegram bot if configured — non-fatal if it fails
-    telegram_app = None
+    # Create Telegram bot for outbound messages (no polling = no conflicts)
     if settings.telegram_bot_token:
         try:
-            from app.services.telegram_service import create_telegram_app
-            telegram_app = await create_telegram_app()
-            logger.info("Telegram bot started")
+            from app.services.telegram_service import create_telegram_bot
+            await create_telegram_bot()
         except Exception as e:
-            logger.warning("Telegram bot failed to start (non-fatal)", error=str(e))
-            telegram_app = None
+            logger.warning("Telegram bot failed to initialize", error=str(e))
 
     yield
-
-    if telegram_app:
-        try:
-            await telegram_app.updater.stop()
-            await telegram_app.stop()
-            await telegram_app.shutdown()
-        except Exception:
-            pass
     stop_scheduler(scheduler)
     logger.info("Shutting down")
 

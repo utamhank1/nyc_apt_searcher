@@ -1,119 +1,22 @@
 import structlog
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.core.config import settings
 
 logger = structlog.get_logger()
 
-_telegram_app: Application | None = None
+_bot: Bot | None = None
 
 
-async def _telegram_error_handler(update, context):
-    """Suppress Telegram Conflict errors so they don't crash the app."""
-    if "Conflict" in str(context.error):
-        logger.debug("Telegram conflict error suppressed")
-        return
-    logger.error("Telegram error", error=str(context.error))
-
-
-async def create_telegram_app() -> Application | None:
-    global _telegram_app
+async def create_telegram_bot() -> Bot | None:
+    """Create a simple outbound-only Telegram bot. No polling."""
+    global _bot
     if not settings.telegram_bot_token:
         return None
 
-    import asyncio
-
-    # Wait for old container to die during Railway zero-downtime deploys
-    await asyncio.sleep(15)
-
-    from telegram import Bot
-    bot = Bot(token=settings.telegram_bot_token)
-    try:
-        await bot.delete_webhook(drop_pending_updates=True)
-    except Exception:
-        pass
-    await asyncio.sleep(3)
-
-    app = Application.builder().token(settings.telegram_bot_token).build()
-    app.add_handler(CommandHandler("start", _handle_start))
-    app.add_handler(CallbackQueryHandler(_handle_callback))
-    app.add_error_handler(_telegram_error_handler)
-
-    await app.initialize()
-    await app.start()
-
-    try:
-        await app.updater.start_polling(drop_pending_updates=True)
-    except Exception as e:
-        logger.warning("Telegram polling failed, bot will work for outbound only", error=str(e))
-
-    _telegram_app = app
-    return app
-
-
-async def _handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await update.message.reply_text(
-        f"🏠 NYC Apartment Searcher connected!\n\n"
-        f"Your chat ID: `{chat_id}`\n\n"
-        f"Add this to your settings to receive alerts here.",
-        parse_mode="Markdown",
-    )
-
-
-async def _handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    if not data or "|" not in data:
-        return
-
-    action, listing_id_str = data.split("|", 1)
-
-    try:
-        listing_id = int(listing_id_str)
-    except ValueError:
-        return
-
-    from app.core.database import async_session_factory
-    from sqlalchemy import select
-    from app.models.listing import Listing
-
-    async with async_session_factory() as db:
-        result = await db.execute(select(Listing).where(Listing.id == listing_id))
-        listing = result.scalar_one_or_none()
-        if not listing:
-            await query.edit_message_reply_markup(reply_markup=None)
-            return
-
-        from app.services.lead_flow_service import process_yes_response, process_no_response
-        if action == "tour":
-            await process_yes_response(listing, db)
-            await query.edit_message_text(
-                query.message.text + "\n\n✅ Tour requested! Broker email sent.",
-            )
-        elif action == "preview":
-            frontend_url = settings.google_calendar_redirect_uri.replace("/api/v1/calendar/callback", "")
-            if not frontend_url:
-                frontend_url = "http://localhost:3000"
-            preview_url = f"{frontend_url}/leads?preview={listing_id}"
-            await query.edit_message_text(
-                query.message.text + f"\n\n🔍 [Preview & edit email on web]({preview_url})",
-                parse_mode="Markdown",
-                disable_web_page_preview=True,
-            )
-        elif action == "no_oh":
-            await query.answer(
-                "No open house listed. Use 'Email Broker' to ask about available times.",
-                show_alert=True,
-            )
-        elif action == "pass":
-            await process_no_response(listing, db)
-            await query.edit_message_text(
-                query.message.text + "\n\n❌ Passed on this one.",
-            )
+    _bot = Bot(token=settings.telegram_bot_token)
+    logger.info("Telegram bot ready (outbound only)")
+    return _bot
 
 
 async def send_telegram_alert(listing: dict) -> bool:
@@ -121,16 +24,9 @@ async def send_telegram_alert(listing: dict) -> bool:
         logger.warning("Telegram not configured, skipping alert")
         return False
 
-    global _telegram_app
-    if not _telegram_app:
-        # Fall back to direct Bot API if polling app didn't start
-        from telegram import Bot
-        try:
-            _telegram_app = Application.builder().token(settings.telegram_bot_token).build()
-            await _telegram_app.initialize()
-        except Exception as e:
-            logger.error("Failed to create fallback Telegram bot", error=str(e))
-            return False
+    global _bot
+    if not _bot:
+        _bot = Bot(token=settings.telegram_bot_token)
 
     commute = f"🚇 {listing['commute_minutes']} min commute\n" if listing.get("commute_minutes") else ""
     avail = listing.get("available_date")
@@ -157,23 +53,15 @@ async def send_telegram_alert(listing: dict) -> bool:
         f"Would you like to tour it?"
     )
 
-    row1 = [
-        InlineKeyboardButton("📧 Send Email", callback_data=f"tour|{listing['id']}"),
-        InlineKeyboardButton("🔍 Preview on Web", callback_data=f"preview|{listing['id']}"),
-    ]
-    row2 = []
-    oh = listing.get("open_house_dates") or []
-    if oh:
-        oh_text = f"📅 Schedule Tour ({len(oh)} open house{'s' if len(oh) > 1 else ''})"
-        row2.append(InlineKeyboardButton(oh_text, callback_data=f"tour|{listing['id']}"))
-    else:
-        row2.append(InlineKeyboardButton("📅 Schedule Tour (none listed)", callback_data=f"no_oh|{listing['id']}"))
-    row2.append(InlineKeyboardButton("❌ Pass", callback_data=f"pass|{listing['id']}"))
-
-    keyboard = InlineKeyboardMarkup([row1, row2])
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Tour it!", url=listing.get("url", "#")),
+            InlineKeyboardButton("❌ Pass", url=listing.get("url", "#")),
+        ]
+    ])
 
     try:
-        await _telegram_app.bot.send_message(
+        await _bot.send_message(
             chat_id=settings.telegram_chat_id,
             text=message,
             parse_mode="Markdown",
