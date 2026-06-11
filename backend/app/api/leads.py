@@ -62,12 +62,18 @@ async def get_leads(
     result = await db.execute(query)
     listings = result.scalars().all()
 
+    # Get thresholds per search name
+    from app.models.search_config import SearchConfig
+    search_result = await db.execute(select(SearchConfig))
+    thresholds = {s.name: s.lead_score_threshold for s in search_result.scalars().all()}
+
     return {
         "items": [_listing_to_dict(l) for l in listings],
         "total": total,
         "page": page,
         "per_page": per_page,
         "total_pages": (total + per_page - 1) // per_page,
+        "thresholds": thresholds,
     }
 
 

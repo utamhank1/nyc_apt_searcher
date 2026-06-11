@@ -37,6 +37,7 @@ export interface LeadsResponse {
   page: number;
   per_page: number;
   total_pages: number;
+  thresholds: Record<string, number>;
 }
 
 export interface SearchConfig {

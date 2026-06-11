@@ -16,6 +16,7 @@ export function LeadsPage() {
   const [leads, setLeads] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [thresholds, setThresholds] = useState<Record<string, number>>({});
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export function LeadsPage() {
       setLeads(data.items);
       setTotal(data.total);
       setTotalPages(data.total_pages || 1);
+      setThresholds(data.thresholds || {});
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect";
       setError(msg);
@@ -223,6 +225,7 @@ export function LeadsPage() {
           <LeadCard
             key={lead.id}
             lead={lead}
+            threshold={thresholds[lead.search_name || ""] || 65}
             onEmailPreview={() => openEmailPreview(lead.id)}
             onTour={() => triggerTour(lead.id)}
             onPass={() => updateStatus(lead.id, "passed")}
@@ -311,8 +314,9 @@ export function LeadsPage() {
   );
 }
 
-function LeadCard({ lead, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHouse }: {
+function LeadCard({ lead, threshold, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHouse }: {
   lead: Listing;
+  threshold: number;
   onEmailPreview: () => void;
   onTour: () => void;
   onPass: () => void;
@@ -323,6 +327,7 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHo
   const hasOpenHouse = lead.open_house_dates && lead.open_house_dates.length > 0;
   const isPassed = lead.status === "passed";
   const scorePercent = lead.match_score != null ? Math.round(lead.match_score) : null;
+  const midThreshold = threshold * 0.6;
 
   return (
     <Card className={`p-4 ${isPassed ? "opacity-50 bg-gray-50" : ""}`}>
@@ -330,8 +335,8 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHo
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
           <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm text-white ${
             isPassed ? "bg-gray-400"
-            : scorePercent != null && scorePercent >= 65 ? "bg-green-600"
-            : scorePercent != null && scorePercent >= 40 ? "bg-yellow-500"
+            : scorePercent != null && scorePercent >= threshold ? "bg-green-600"
+            : scorePercent != null && scorePercent >= midThreshold ? "bg-yellow-500"
             : "bg-red-500"
           }`}>
             {scorePercent != null ? `${scorePercent}%` : "?"}
