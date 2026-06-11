@@ -328,7 +328,12 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHo
     <Card className={`p-4 ${isPassed ? "opacity-50 bg-gray-50" : ""}`}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm ${isPassed ? "bg-gray-400 text-white" : "bg-gray-900 text-white"}`}>
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm text-white ${
+            isPassed ? "bg-gray-400"
+            : scorePercent != null && scorePercent >= 65 ? "bg-green-600"
+            : scorePercent != null && scorePercent >= 40 ? "bg-yellow-500"
+            : "bg-red-500"
+          }`}>
             {scorePercent != null ? `${scorePercent}%` : "?"}
           </div>
           <button onClick={onFavorite} className="text-lg hover:scale-125 transition-transform">
