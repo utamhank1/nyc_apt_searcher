@@ -82,7 +82,6 @@ async def _run_search(search_config: SearchConfig, db: AsyncSession):
 
     all_raw_listings = []
 
-    # Primary: Realtor.com API (reliable, no bot-blocking)
     try:
         from app.scrapers.realtor_api import search_realtor_api
         raw = await search_realtor_api(criteria)
@@ -90,20 +89,6 @@ async def _run_search(search_config: SearchConfig, db: AsyncSession):
         logger.info(f"Realtor.com [{search_name}]: {len(raw)} listings")
     except Exception as e:
         logger.error("Realtor.com API failed", search=search_name, error=str(e))
-
-    # Fallback: StreetEasy Playwright (if enabled and Realtor found nothing)
-    if not all_raw_listings and sources.get("streeteasy", False):
-        try:
-            from app.scrapers.streeteasy import StreetEasyScraper
-            scraper = StreetEasyScraper()
-            try:
-                raw = await scraper.scrape(criteria)
-                all_raw_listings.extend(raw)
-                logger.info(f"StreetEasy [{search_name}]: {len(raw)} listings")
-            finally:
-                await scraper.close()
-        except Exception as e:
-            logger.error("StreetEasy scraper failed", search=search_name, error=str(e))
 
     if not all_raw_listings:
         logger.warning(f"No listings found for: {search_name}")
