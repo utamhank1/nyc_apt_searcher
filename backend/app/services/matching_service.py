@@ -91,11 +91,12 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
     must_haves = criteria.get("must_have_amenities", [])
     if must_haves:
         listing_amenities = listing_data.get("amenities") or []
-        listing_amenities_lower = [a.lower() for a in listing_amenities]
-        for must_have in must_haves:
-            if not any(must_have.lower() in a for a in listing_amenities_lower):
-                logger.debug("Filtered: missing must-have", missing=must_have, has=listing_amenities[:5])
-                return None
+        if listing_amenities:
+            listing_amenities_lower = [a.lower() for a in listing_amenities]
+            for must_have in must_haves:
+                if not any(must_have.lower() in a for a in listing_amenities_lower):
+                    logger.debug("Filtered: missing must-have", missing=must_have, has=listing_amenities[:5])
+                    return None
 
     date_match = _check_move_in_date(listing_data, criteria)
     if criteria.get("move_in_only"):
