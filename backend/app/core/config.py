@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     preferred_amenities: str = '[]'
     work_address: str = ""
     lead_score_threshold: int = 70
-    sources_enabled: str = '{"streeteasy": true, "zillow": true}'
+    sources_enabled: str = '{"streeteasy": true, "zillow": false}'
 
     # Move-in date filter
     move_in_mode: str = ""  # "", "immediately", "date", "range"
