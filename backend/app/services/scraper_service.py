@@ -158,7 +158,7 @@ async def _run_search(search_config: SearchConfig, db: AsyncSession):
                 db.add(listing)
                 await db.flush()
 
-                if score >= threshold:
+                if score >= 65:
                     new_leads.append(listing)
 
         except Exception as e:

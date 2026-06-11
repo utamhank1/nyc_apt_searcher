@@ -25,6 +25,7 @@ export interface Listing {
   status: string;
   lead_response: string | null;
   notified: boolean;
+  is_favorite: boolean;
   is_active: boolean;
   first_seen: string | null;
   broker_email_sent: boolean;
@@ -35,6 +36,7 @@ export interface LeadsResponse {
   total: number;
   page: number;
   per_page: number;
+  total_pages: number;
 }
 
 export interface SearchConfig {

@@ -77,6 +77,8 @@ class Listing(Base):
 
     available_date = Column(String(20))
 
+    is_favorite = Column(Boolean, default=False, index=True)
+
     search_config_id = Column(Integer, nullable=True)
     search_name = Column(String(100), nullable=True)
 

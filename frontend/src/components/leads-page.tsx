@@ -15,9 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 export function LeadsPage() {
   const [leads, setLeads] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [submitUrl, setSubmitUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -32,19 +35,21 @@ export function LeadsPage() {
     try {
       setLoading(true);
       setError(null);
-      let path = `/api/v1/leads?sort_by=${sortBy}&sort_dir=desc&per_page=50`;
+      let path = `/api/v1/leads?sort_by=${sortBy}&sort_dir=desc&per_page=25&page=${page}`;
       if (statusFilter !== "all") path += `&status=${statusFilter}`;
       if (sourceFilter !== "all") path += `&source=${sourceFilter}`;
+      if (favoritesOnly) path += `&favorites_only=true`;
       const data = await api.get<LeadsResponse>(path);
       setLeads(data.items);
       setTotal(data.total);
+      setTotalPages(data.total_pages || 1);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect";
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, sourceFilter, sortBy]);
+  }, [statusFilter, sourceFilter, sortBy, page, favoritesOnly]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -87,6 +92,11 @@ export function LeadsPage() {
       console.error("Failed to send", e);
     }
     setSendingEmail(false);
+  };
+
+  const toggleFavorite = async (id: number) => {
+    await api.patch(`/api/v1/leads/${id}/favorite`, {});
+    fetchLeads();
   };
 
   const triggerScrape = async () => {
@@ -148,7 +158,7 @@ export function LeadsPage() {
       </Card>
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Hot Leads ({total})</h1>
+        <h1 className="text-2xl font-bold">All Leads ({total})</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={triggerScrape} disabled={scraping}>
             {scraping ? "Scraping..." : "Run Scrape"}
@@ -180,6 +190,14 @@ export function LeadsPage() {
           </SelectContent>
         </Select>
 
+        <Button
+          variant={favoritesOnly ? "default" : "outline"}
+          onClick={() => { setFavoritesOnly(!favoritesOnly); setPage(1); }}
+          className="text-sm"
+        >
+          {favoritesOnly ? "❤️ Favorites" : "♡ Favorites"}
+        </Button>
+
         <Select value={sortBy} onValueChange={(v) => v && setSortBy(v)}>
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
           <SelectContent>
@@ -208,6 +226,7 @@ export function LeadsPage() {
             onEmailPreview={() => openEmailPreview(lead.id)}
             onTour={() => triggerTour(lead.id)}
             onPass={() => updateStatus(lead.id, "passed")}
+            onFavorite={() => toggleFavorite(lead.id)}
             onNoOpenHouse={() => setNoOhDialog(true)}
           />
         ))}
@@ -217,6 +236,19 @@ export function LeadsPage() {
           </Card>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 mt-6">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </Button>
+          <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+            Next
+          </Button>
+        </div>
+      )}
 
       {/* Email Preview Dialog */}
       <Dialog open={!!emailPreview} onOpenChange={(open) => !open && setEmailPreview(null)}>
@@ -279,22 +311,29 @@ export function LeadsPage() {
   );
 }
 
-function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
+function LeadCard({ lead, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHouse }: {
   lead: Listing;
   onEmailPreview: () => void;
   onTour: () => void;
   onPass: () => void;
+  onFavorite: () => void;
   onNoOpenHouse: () => void;
 }) {
   const statusClass = STATUS_COLORS[lead.status] || "bg-gray-100 text-gray-600";
   const hasOpenHouse = lead.open_house_dates && lead.open_house_dates.length > 0;
   const isPassed = lead.status === "passed";
+  const scorePercent = lead.match_score != null ? Math.round(lead.match_score) : null;
 
   return (
     <Card className={`p-4 ${isPassed ? "opacity-50 bg-gray-50" : ""}`}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className={`flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg ${isPassed ? "bg-gray-400 text-white" : "bg-gray-900 text-white"}`}>
-          {lead.match_score ?? "?"}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm ${isPassed ? "bg-gray-400 text-white" : "bg-gray-900 text-white"}`}>
+            {scorePercent != null ? `${scorePercent}%` : "?"}
+          </div>
+          <button onClick={onFavorite} className="text-lg hover:scale-125 transition-transform">
+            {lead.is_favorite ? "❤️" : "🤍"}
+          </button>
         </div>
 
         <div className="flex-1 min-w-0">

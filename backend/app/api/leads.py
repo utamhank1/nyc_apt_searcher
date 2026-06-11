@@ -17,14 +17,17 @@ async def get_leads(
     borough: Optional[str] = None,
     source: Optional[str] = None,
     search_name: Optional[str] = None,
+    favorites_only: Optional[bool] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
     sort_by: str = Query("match_score", pattern="^(match_score|price|commute_minutes|first_seen)$"),
     sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
-    per_page: int = Query(50, ge=1, le=100),
+    per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
+    from sqlalchemy import case
+
     query = select(Listing).where(Listing.is_active == True)
 
     if status:
@@ -35,16 +38,22 @@ async def get_leads(
         query = query.where(Listing.source == source)
     if search_name:
         query = query.where(Listing.search_name == search_name)
+    if favorites_only:
+        query = query.where(Listing.is_favorite == True)
     if min_price is not None:
         query = query.where(Listing.price >= min_price)
     if max_price is not None:
         query = query.where(Listing.price <= max_price)
 
+    # Sort: favorites first, passed last, then by chosen sort
+    passed_order = case((Listing.status == "passed", 1), else_=0)
+    fav_order = case((Listing.is_favorite == True, 0), else_=1)
+
     col = getattr(Listing, sort_by, Listing.match_score)
     if sort_dir == "desc":
-        query = query.order_by(col.desc().nulls_last())
+        query = query.order_by(fav_order, passed_order, col.desc().nulls_last())
     else:
-        query = query.order_by(col.asc().nulls_last())
+        query = query.order_by(fav_order, passed_order, col.asc().nulls_last())
 
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
@@ -58,7 +67,19 @@ async def get_leads(
         "total": total,
         "page": page,
         "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page,
     }
+
+
+@router.patch("/leads/{listing_id}/favorite")
+async def toggle_favorite(listing_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Listing).where(Listing.id == listing_id))
+    listing = result.scalar_one_or_none()
+    if not listing:
+        return {"error": "Listing not found"}
+    listing.is_favorite = not listing.is_favorite
+    await db.commit()
+    return {"ok": True, "listing_id": listing_id, "is_favorite": listing.is_favorite}
 
 
 @router.patch("/leads/{listing_id}/status")
@@ -275,6 +296,7 @@ def _listing_to_dict(l: Listing) -> dict:
         "status": l.status,
         "lead_response": l.lead_response,
         "notified": l.notified,
+        "is_favorite": l.is_favorite or False,
         "is_active": l.is_active,
         "first_seen": l.first_seen.isoformat() if l.first_seen else None,
         "broker_email_sent": l.broker_email_sent,
