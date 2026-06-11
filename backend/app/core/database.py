@@ -32,18 +32,18 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
     # Add columns that may be missing from existing tables
-    async with engine.begin() as conn:
-        for col, coltype, default in [
-            ("is_favorite", "BOOLEAN", "FALSE"),
-            ("search_config_id", "INTEGER", "NULL"),
-            ("search_name", "VARCHAR(100)", "NULL"),
-            ("available_date", "VARCHAR(20)", "NULL"),
-        ]:
-            try:
-                await conn.execute(
-                    __import__("sqlalchemy").text(
-                        f"ALTER TABLE listings ADD COLUMN {col} {coltype} DEFAULT {default}"
-                    )
-                )
-            except Exception:
-                pass  # column already exists
+    from sqlalchemy import text
+    migrations = [
+        ("listings", "is_favorite", "BOOLEAN", "FALSE"),
+        ("listings", "search_config_id", "INTEGER", "NULL"),
+        ("listings", "search_name", "VARCHAR(100)", "NULL"),
+        ("listings", "available_date", "VARCHAR(20)", "NULL"),
+    ]
+    for table, col, coltype, default in migrations:
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text(
+                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {coltype} DEFAULT {default}"
+                ))
+        except Exception:
+            pass
