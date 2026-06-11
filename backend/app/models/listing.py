@@ -24,6 +24,7 @@ class LeadResponse(str, enum.Enum):
 class ListingSource(str, enum.Enum):
     STREETEASY = "streeteasy"
     ZILLOW = "zillow"
+    REALTOR = "realtor"
     CRAIGSLIST = "craigslist"
 
 

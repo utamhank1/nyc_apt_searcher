@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     google_calendar_redirect_uri: str = ""
     google_calendar_refresh_token: str = ""
 
+    # RapidAPI (Realtor.com)
+    rapidapi_key: str = ""
+
     # Scraper settings
     scrape_interval_hours: int = 3
 
