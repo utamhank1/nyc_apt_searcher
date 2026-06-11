@@ -213,7 +213,7 @@ export function LeadsPage() {
         ))}
         {!loading && leads.length === 0 && (
           <Card className="p-8 text-center text-gray-500">
-            No leads found. The scraper runs every 6 hours — check back soon!
+            No leads found. The scraper runs every 2 hours — check back soon!
           </Card>
         )}
       </div>
