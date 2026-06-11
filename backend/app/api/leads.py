@@ -110,6 +110,22 @@ async def update_lead_status(
     return {"ok": True, "listing_id": listing_id}
 
 
+@router.post("/leads/send-telegram-alert")
+async def send_listing_telegram_alert(body: dict, db: AsyncSession = Depends(get_db)):
+    listing_id = body.get("listing_id")
+    if not listing_id:
+        return {"error": "listing_id required"}
+    result = await db.execute(select(Listing).where(Listing.id == listing_id))
+    listing = result.scalar_one_or_none()
+    if not listing:
+        return {"error": "Listing not found"}
+    from app.services.telegram_service import send_telegram_alert
+    listing_dict = _listing_to_dict(listing)
+    listing_dict["open_house_dates"] = listing.open_house_dates or []
+    sent = await send_telegram_alert(listing_dict)
+    return {"ok": sent}
+
+
 @router.post("/leads/test-telegram")
 async def test_telegram():
     from app.services.telegram_service import send_telegram_alert

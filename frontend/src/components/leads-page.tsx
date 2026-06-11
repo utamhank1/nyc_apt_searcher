@@ -373,6 +373,13 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onFavorite, onNoOpenHo
             </Button>
           )}
           {!isPassed && (
+            <Button size="sm" variant="outline" onClick={async () => {
+              await api.post("/api/v1/leads/send-telegram-alert", { listing_id: lead.id });
+            }}>
+              📢 Alert
+            </Button>
+          )}
+          {!isPassed && (
             hasOpenHouse ? (
               <Button size="sm" onClick={onTour} className="bg-green-600 hover:bg-green-700">
                 Schedule Tour
