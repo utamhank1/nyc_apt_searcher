@@ -138,9 +138,10 @@ def score_listing(listing_data: dict, criteria: dict | None = None) -> float | N
             score += (overlap / len(preferred_lower)) * 20
 
     max_commute = 60
-    if listing_data.get("commute_minutes") is not None:
-        commute = listing_data["commute_minutes"]
-        if commute <= max_commute:
-            score += (1 - commute / max_commute) * 15
+    commute = listing_data.get("commute_minutes")
+    if commute is None:
+        score += 15
+    elif commute <= max_commute:
+        score += (1 - commute / max_commute) * 15
 
     return round(score, 1)
