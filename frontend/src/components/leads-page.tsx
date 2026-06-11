@@ -71,6 +71,12 @@ export function LeadsPage() {
     if (!emailPreview) return;
     setSendingEmail(true);
     try {
+      // Save broker email to listing first
+      if (emailPreview.brokerEmail) {
+        await api.patch(`/api/v1/leads/${emailPreview.listingId}/status`, {
+          broker_email: emailPreview.brokerEmail,
+        });
+      }
       await api.post(`/api/v1/leads/${emailPreview.listingId}/send-email`, {
         subject: emailPreview.subject,
         body: emailPreview.body,
@@ -220,7 +226,14 @@ export function LeadsPage() {
           </DialogHeader>
           {emailPreview && (
             <div className="space-y-4">
-              <div className="text-sm text-gray-500">To: {emailPreview.brokerEmail || "No broker email found"}</div>
+              <div>
+                <Label className="text-sm">To (broker email)</Label>
+                <Input
+                  value={emailPreview.brokerEmail}
+                  onChange={(e) => setEmailPreview({ ...emailPreview, brokerEmail: e.target.value })}
+                  placeholder="broker@email.com"
+                />
+              </div>
               <div>
                 <Label className="text-sm">Subject</Label>
                 <Input
@@ -335,9 +348,14 @@ function LeadCard({ lead, onEmailPreview, onTour, onPass, onNoOpenHouse }: {
           )}
         </div>
       </div>
-      {lead.broker_email_sent && (
-        <div className="mt-2 text-xs text-green-600">✅ Broker email sent</div>
-      )}
+      <div className="mt-2 flex items-center gap-2 flex-wrap">
+        {lead.broker_email ? (
+          <span className="text-xs text-gray-500">Broker: {lead.broker_name || ""} &lt;{lead.broker_email}&gt;</span>
+        ) : (
+          <span className="text-xs text-gray-400">No broker email — add one via &quot;Email Broker&quot;</span>
+        )}
+        {lead.broker_email_sent && <span className="text-xs text-green-600">✅ Sent</span>}
+      </div>
     </Card>
   );
 }

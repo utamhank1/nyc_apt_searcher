@@ -71,12 +71,22 @@ async def update_lead_status(
     if new_status and new_status not in [s.value for s in ListingStatus]:
         return {"error": f"Invalid status: {new_status}"}
 
-    stmt = update(Listing).where(Listing.id == listing_id)
+    values = {}
     if new_status:
-        stmt = stmt.values(status=new_status)
-    await db.execute(stmt)
-    await db.commit()
-    return {"ok": True, "listing_id": listing_id, "status": new_status}
+        values["status"] = new_status
+    if "broker_email" in body:
+        values["broker_email"] = body["broker_email"]
+    if "broker_name" in body:
+        values["broker_name"] = body["broker_name"]
+    if "broker_phone" in body:
+        values["broker_phone"] = body["broker_phone"]
+
+    if values:
+        stmt = update(Listing).where(Listing.id == listing_id).values(**values)
+        await db.execute(stmt)
+        await db.commit()
+
+    return {"ok": True, "listing_id": listing_id}
 
 
 @router.post("/leads/test-telegram")
