@@ -14,30 +14,42 @@ export function hasApiKey(): boolean {
   return !!localStorage.getItem("apt_api_key");
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": getApiKey(),
-      ...options.headers,
-    },
-  });
+async function request<T>(path: string, options: RequestInit = {}, retries = 2): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${API_URL}${path}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": getApiKey(),
+          ...options.headers,
+        },
+      });
 
-  if (res.status === 401) {
-    if (!path.includes("/calendar/") && !path.includes("/test-telegram")) {
-      console.warn("401 on", path, "- clearing API key");
-      localStorage.removeItem("apt_api_key");
+      if (res.status === 401) {
+        if (!path.includes("/calendar/") && !path.includes("/test-telegram")) {
+          console.warn("401 on", path, "- clearing API key");
+          localStorage.removeItem("apt_api_key");
+        }
+        throw new Error("Unauthorized");
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API error ${res.status}: ${text}`);
+      }
+
+      return res.json();
+    } catch (e) {
+      if (e instanceof Error && e.message === "Unauthorized") throw e;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      throw e;
     }
-    throw new Error("Unauthorized");
   }
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
-  }
-
-  return res.json();
+  throw new Error("Request failed");
 }
 
 export const api = {
