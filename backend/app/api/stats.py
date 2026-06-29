@@ -18,7 +18,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     hot_leads = (await db.execute(
         select(func.count(Listing.id)).where(
             Listing.match_score != None,
-            Listing.match_score >= 0,
+            Listing.match_score >= 65,
             Listing.is_active == True,
         )
     )).scalar() or 0
