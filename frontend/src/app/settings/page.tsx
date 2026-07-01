@@ -224,7 +224,7 @@ function GoogleCalendarSection() {
   };
 
   const disconnectUser = async (email: string) => {
-    await api.get(`/api/v1/calendar/disconnect?email=${encodeURIComponent(email)}`);
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/calendar/disconnect?email=${encodeURIComponent(email)}`, { method: "DELETE" });
     setConnections(connections.filter((c) => c.email !== email));
   };
 
