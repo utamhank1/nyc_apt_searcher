@@ -55,11 +55,8 @@ export default function SearchesPage() {
 
   const deleteSearch = async (id: number) => {
     if (!confirm("Delete this search?")) return;
-    const res = await api.get<{ ok?: boolean; error?: string }>(`/api/v1/searches/${id}`);
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/searches/${id}`, {
-      method: "DELETE",
-      headers: { "X-API-Key": localStorage.getItem("apt_api_key") || "" },
-    });
+    const res = await api.del<{ ok?: boolean; error?: string }>(`/api/v1/searches/${id}`);
+    if (res.error) { alert(res.error); return; }
     fetchSearches();
   };
 
