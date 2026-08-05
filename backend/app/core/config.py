@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from_email: str = "alerts@yourdomain.com"
     alert_to_email: str = ""
+    resend_webhook_secret: str = ""
 
     # Telegram
     telegram_bot_token: str = ""

@@ -1,22 +1,14 @@
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Depends, HTTPException, Security
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
 
+from app.core.auth import verify_api_key
 from app.core.config import settings
 from app.core.database import init_db
 
 logger = structlog.get_logger()
-
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-
-async def verify_api_key(api_key: str = Security(api_key_header)):
-    if not api_key or api_key != settings.api_key:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    return api_key
 
 
 @asynccontextmanager
