@@ -49,6 +49,8 @@ Open http://localhost:3000, enter your API key, and configure your search criter
 | Telegram Bot | Instant alerts with Y/N buttons | Talk to @BotFather on Telegram |
 | Google Maps | Commute time calculation | https://console.cloud.google.com |
 
+`RESEND_WEBHOOK_SECRET` (the signing secret shown when you add the inbound-reply webhook in Resend) is also required — `/api/v1/webhooks/email-reply` rejects unsigned requests, so the "reply Y" flow won't work without it.
+
 ## Deploy
 
 **Backend** → Railway ($7/mo for Playwright memory)

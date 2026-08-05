@@ -142,8 +142,6 @@ async def rescore_all(db: AsyncSession = Depends(get_db)):
             if score is not None and score > best_score:
                 best_score = score
                 best_search = search
-        if score is None:
-            best_score = 0.0
         listing.match_score = best_score
         if best_search:
             listing.search_name = best_search.name

@@ -7,6 +7,7 @@ from google_auth_oauthlib.flow import Flow
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import verify_api_key
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.calendar_connection import CalendarConnection
@@ -16,7 +17,7 @@ router = APIRouter(tags=["calendar"])
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
 
-@router.get("/calendar/authorize")
+@router.get("/calendar/authorize", dependencies=[Depends(verify_api_key)])
 async def authorize(role: str = "main", email: str = ""):
     if not settings.google_calendar_client_id:
         return {"error": "Google Calendar client ID not configured. Set GOOGLE_CALENDAR_CLIENT_ID in env vars."}
@@ -111,7 +112,7 @@ async def callback(code: str, state: str = "{}", db: AsyncSession = Depends(get_
         )
 
 
-@router.get("/calendar/connections")
+@router.get("/calendar/connections", dependencies=[Depends(verify_api_key)])
 async def list_connections(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CalendarConnection))
     connections = result.scalars().all()
@@ -127,7 +128,7 @@ async def list_connections(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/calendar/status")
+@router.get("/calendar/status", dependencies=[Depends(verify_api_key)])
 async def calendar_status(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CalendarConnection))
     connections = result.scalars().all()
@@ -140,7 +141,7 @@ async def calendar_status(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.delete("/calendar/disconnect")
+@router.delete("/calendar/disconnect", dependencies=[Depends(verify_api_key)])
 async def disconnect(email: str = "", db: AsyncSession = Depends(get_db)):
     if email:
         result = await db.execute(
